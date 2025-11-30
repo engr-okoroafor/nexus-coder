@@ -1,0 +1,7 @@
+{
+  "name": "Nexus Coder - Autonomous Multi-Agent System",
+  "description": "An autonomous multi-agent AI system designed for enterprise software engineering. Architects, writes, debugs, and deploys full-stack Web and Mobile (Flutter/React Native) apps with resilient multi-model fallback.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
