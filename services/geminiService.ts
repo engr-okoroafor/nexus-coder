@@ -9,7 +9,14 @@ import { MODEL_LIMITS, GROQ_FALLBACK_API_KEY } from '../constants';
 // Define ResponseSchema type locally since it's not exported from @google/genai
 type ResponseSchema = Record<string, any>;
 
-const geminiAi = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// Get API key from environment - supports both local and production
+const GEMINI_API_KEY = process.env.API_KEY || process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+
+if (!GEMINI_API_KEY) {
+    console.error('❌ GEMINI_API_KEY not found! Please set VITE_GEMINI_API_KEY in your environment variables.');
+}
+
+const geminiAi = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 // ... existing helper functions ...
 // ... existing RateLimiter setup ...
