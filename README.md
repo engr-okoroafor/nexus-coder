@@ -51,7 +51,7 @@ npm run dev
 4. Connect your GitHub repository
 5. **Important**: Set environment variables in Netlify:
    - Go to Site settings → Environment variables
-   - Add `GEMINI_API_KEY` with your Gemini API key
+   - Add `VITE_GEMINI_API_KEY` with your Gemini API key (use VITE_ prefix!)
    - Add `VITE_GROQ_FALLBACK_API_KEY` with your Groq API key (optional)
 6. Deploy!
 
@@ -61,7 +61,7 @@ npm run dev
 npm install -g netlify-cli
 netlify login
 netlify init
-netlify env:set GEMINI_API_KEY "your_key_here"
+netlify env:set VITE_GEMINI_API_KEY "your_key_here"
 netlify env:set VITE_GROQ_FALLBACK_API_KEY "your_key_here"
 netlify deploy --prod
 ```
@@ -70,10 +70,11 @@ netlify deploy --prod
 
 If you see a blank page after deployment:
 
-1. **Check Environment Variables**: Make sure `GEMINI_API_KEY` is set in Netlify Dashboard
+1. **Check Environment Variables**: Make sure `VITE_GEMINI_API_KEY` is set in Netlify Dashboard (note the VITE_ prefix!)
 2. **Check Browser Console**: Open DevTools (F12) and look for errors
 3. **Rebuild**: Trigger a new deploy after setting environment variables
 4. **Check Build Logs**: Look for any build errors in Netlify's deploy logs
+5. **Clear Build Cache**: In Netlify, go to Site settings → Build & deploy → Clear cache and retry deploy
 
 ---
 

@@ -12,5 +12,5 @@
 
 # Note: Set these environment variables in Netlify Dashboard:
 # Settings > Environment Variables
-# - GEMINI_API_KEY
+# - VITE_GEMINI_API_KEY (note the VITE_ prefix!)
 # - VITE_GROQ_FALLBACK_API_KEY (optional)
