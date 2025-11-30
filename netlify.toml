@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Note: Set these environment variables in Netlify Dashboard:
+# Settings > Environment Variables
+# - GEMINI_API_KEY
+# - VITE_GROQ_FALLBACK_API_KEY (optional)

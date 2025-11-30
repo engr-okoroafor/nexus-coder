@@ -41,6 +41,40 @@ npm run dev
 - **Gemini API**: Get your free key at [Google AI Studio](https://makersuite.google.com/app/apikey)
 - **Groq API** (optional): Get your key at [Groq Console](https://console.groq.com/)
 
+## 🌐 Deploying to Netlify
+
+### Option 1: Deploy via Netlify Dashboard
+
+1. Push your code to GitHub
+2. Go to [Netlify](https://app.netlify.com/)
+3. Click "Add new site" → "Import an existing project"
+4. Connect your GitHub repository
+5. **Important**: Set environment variables in Netlify:
+   - Go to Site settings → Environment variables
+   - Add `GEMINI_API_KEY` with your Gemini API key
+   - Add `VITE_GROQ_FALLBACK_API_KEY` with your Groq API key (optional)
+6. Deploy!
+
+### Option 2: Deploy via Netlify CLI
+
+```bash
+npm install -g netlify-cli
+netlify login
+netlify init
+netlify env:set GEMINI_API_KEY "your_key_here"
+netlify env:set VITE_GROQ_FALLBACK_API_KEY "your_key_here"
+netlify deploy --prod
+```
+
+### Troubleshooting Blank Page on Netlify
+
+If you see a blank page after deployment:
+
+1. **Check Environment Variables**: Make sure `GEMINI_API_KEY` is set in Netlify Dashboard
+2. **Check Browser Console**: Open DevTools (F12) and look for errors
+3. **Rebuild**: Trigger a new deploy after setting environment variables
+4. **Check Build Logs**: Look for any build errors in Netlify's deploy logs
+
 ---
 
 **### Problem Statement**
