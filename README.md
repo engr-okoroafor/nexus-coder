@@ -1,3 +1,47 @@
+# Nexus Coder - Autonomous Multi-Agent System
+
+## 🚀 Quick Setup
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/engr-okoroafor/nexus-coder.git
+cd nexus-coder
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
+
+4. Add your API keys to `.env.local`:
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+VITE_GROQ_FALLBACK_API_KEY=your_groq_api_key_here  # Optional
+```
+
+5. Start the development server:
+```bash
+npm run dev
+```
+
+6. Open http://localhost:3000 in your browser
+
+### Getting API Keys
+- **Gemini API**: Get your free key at [Google AI Studio](https://makersuite.google.com/app/apikey)
+- **Groq API** (optional): Get your key at [Groq Console](https://console.groq.com/)
+
+---
 
 **### Problem Statement**
 
