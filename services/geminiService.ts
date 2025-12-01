@@ -10,13 +10,25 @@ import { MODEL_LIMITS, GROQ_FALLBACK_API_KEY } from '../constants';
 type ResponseSchema = Record<string, any>;
 
 // Get API key from environment - supports both local and production
-const GEMINI_API_KEY = process.env.API_KEY || process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || '';
+const getApiKey = () => {
+    const importMetaEnv = (import.meta as any).env;
+    return process.env.API_KEY || process.env.GEMINI_API_KEY || importMetaEnv?.VITE_GEMINI_API_KEY || '';
+};
 
-if (!GEMINI_API_KEY) {
-    console.error('❌ GEMINI_API_KEY not found! Please set VITE_GEMINI_API_KEY in your environment variables.');
-}
+// Lazy initialization - only create GoogleGenAI instance when needed
+let geminiAi: GoogleGenAI | null = null;
 
-const geminiAi = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+const getGeminiAi = (): GoogleGenAI => {
+    if (!geminiAi) {
+        const apiKey = getApiKey();
+        if (!apiKey) {
+            console.warn('⚠️ GEMINI_API_KEY not found! Please set VITE_GEMINI_API_KEY in Netlify environment variables.');
+            // Return instance with placeholder - will fail gracefully when API is called
+        }
+        geminiAi = new GoogleGenAI({ apiKey: apiKey || 'placeholder-key-not-set' });
+    }
+    return geminiAi;
+};
 
 // ... existing helper functions ...
 // ... existing RateLimiter setup ...
@@ -145,7 +157,7 @@ async function searchWithGoogle(userPrompt: string, signal?: AbortSignal): Promi
     if (signal?.aborted) throw new Error('Aborted');
 
     try {
-        const result = await retryWithBackoff<GenerateContentResponse>(() => geminiAi.models.generateContent({
+        const result = await retryWithBackoff<GenerateContentResponse>(() => getGeminiAi().models.generateContent({
             model,
             contents: `User Query: "${userPrompt}"
             
@@ -327,7 +339,7 @@ async function callGeminiApi(model: string, systemInstruction: string, userPromp
     if (signal?.aborted) throw new Error('Aborted');
     
     try {
-        const result = await retryWithBackoff<GenerateContentResponse>(() => geminiAi.models.generateContent({
+        const result = await retryWithBackoff<GenerateContentResponse>(() => getGeminiAi().models.generateContent({
             model,
             contents: userPrompt,
             config: {

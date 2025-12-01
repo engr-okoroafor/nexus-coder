@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Netlify Test</title>
+</head>
+<body style="font-family: system-ui; padding: 40px; background: #1a1a1a; color: #fff;">
+    <h1>✅ Netlify Deployment Working</h1>
+    <p>If you can see this page, Netlify is serving files correctly.</p>
+    <p>Environment check:</p>
+    <pre id="env"></pre>
+    <script>
+        // This will show what environment variables are available
+        document.getElementById('env').textContent = JSON.stringify({
+            hasViteGeminiKey: typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY ? 'Yes' : 'No',
+            mode: typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.MODE : 'unknown'
+        }, null, 2);
+    </script>
+    <p><a href="/" style="color: #a855f7;">← Back to App</a></p>
+</body>
+</html>
