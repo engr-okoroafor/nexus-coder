@@ -115,25 +115,25 @@ const PricingModal: React.FC<{ onClose: () => void, onLaunch: () => void }> = ({
                     </button>
                 </div>
 
-                <div className="overflow-y-auto p-6 md:p-10 custom-scrollbar">
-                    <div className="text-center mb-12">
-                        <h2 className="text-3xl md:text-5xl font-orbitron font-bold text-white mb-4 tracking-wider">
+                <div className="overflow-y-auto p-4 md:p-6 custom-scrollbar max-h-[85vh]">
+                    <div className="text-center mb-6">
+                        <h2 className="text-2xl md:text-3xl font-orbitron font-bold text-white mb-2 tracking-wider">
                             CHOOSE YOUR <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">POWER</span>
                         </h2>
-                        <p className="text-gray-400 text-lg">Scale your autonomous development capabilities.</p>
+                        <p className="text-gray-400 text-sm md:text-base">Scale your autonomous development capabilities.</p>
                         
                         {/* Currency Switcher */}
-                        <div className="flex justify-center mt-8">
+                        <div className="flex justify-center mt-4">
                             <div className="bg-gray-900/80 p-1 rounded-full border border-purple-500/30 flex relative">
                                 <button 
                                     onClick={() => setCurrency('USD')}
-                                    className={`px-6 py-2 rounded-full text-sm font-bold font-orbitron transition-all duration-300 ${currency === 'USD' ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'text-gray-400 hover:text-white'}`}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold font-orbitron transition-all duration-300 ${currency === 'USD' ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     USD
                                 </button>
                                 <button 
                                     onClick={() => setCurrency('NGN')}
-                                    className={`px-6 py-2 rounded-full text-sm font-bold font-orbitron transition-all duration-300 ${currency === 'NGN' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'text-gray-400 hover:text-white'}`}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold font-orbitron transition-all duration-300 ${currency === 'NGN' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     NGN
                                 </button>
@@ -141,18 +141,18 @@ const PricingModal: React.FC<{ onClose: () => void, onLaunch: () => void }> = ({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Free Tier */}
                         <div className="relative group h-full">
                             <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent rounded-[2rem] blur-xl group-hover:blur-2xl transition-all opacity-0 group-hover:opacity-100"></div>
-                            <div className="relative bg-[#13131f] border border-white/10 rounded-[2rem] p-8 hover:border-cyan-500/50 transition-all duration-300 h-full flex flex-col">
-                                <div className="mb-6">
+                            <div className="relative bg-[#13131f] border border-white/10 rounded-[2rem] p-4 md:p-6 hover:border-cyan-500/50 transition-all duration-300 h-full flex flex-col">
+                                <div className="mb-4">
                                     <h3 className="text-xl font-orbitron text-cyan-300 mb-2">SPARK</h3>
                                     <div className="text-4xl font-bold text-white mb-2">{formatPrice(0)}</div>
-                                    <p className="text-gray-400 text-sm">For hobbyists and prototypes.</p>
+                                    <p className="text-gray-400 text-xs md:text-sm">For hobbyists and prototypes.</p>
                                 </div>
-                                <ul className="space-y-4 mb-8 flex-grow">
-                                    <li className="flex items-center gap-3 text-gray-300 text-sm">
+                                <ul className="space-y-2 md:space-y-3 mb-4 md:mb-6 flex-grow">
+                                    <li className="flex items-center gap-2 text-gray-300 text-xs md:text-sm">
                                         <div className="w-1.5 h-1.5 rounded-full bg-cyan-400"></div>
                                         300,000 Daily Tokens
                                     </li>
@@ -439,8 +439,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunch }) => {
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
                                 placeholder={typewriterPlaceholder + '|'}
-                                className="w-full bg-transparent focus:outline-none transition-all duration-300 font-fira-code text-base resize-none text-gray-200 placeholder:text-gray-600 overflow-y-hidden min-h-[80px]"
-                                rows={3}
+                                className="w-full bg-transparent focus:outline-none transition-all duration-300 font-fira-code text-base resize-none text-gray-200 placeholder:text-gray-600 overflow-y-hidden min-h-[50px] max-h-[120px]"
+                                rows={2}
                             />
                             <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between flex-wrap gap-2">
                                 <div className="flex items-center gap-4 text-sm">

@@ -261,12 +261,12 @@ export const CodeView: React.FC<CodeViewProps> = ({
 
         {/* Editor Tabs */}
         <div className="flex h-9 bg-[#0a0a0c] border-b border-white/10 overflow-x-auto hide-scrollbar select-none">
-            {openFiles.map(file => (
+            {openFiles.length > 0 && openFiles.map((file, index) => (
                 <div 
-                    key={file.id}
+                    key={`${file.id}-${index}`}
                     onClick={() => onActivateFile(file)}
                     className={`
-                        group flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] text-xs cursor-pointer border-r border-white/5 transition-colors relative
+                        group flex items-center gap-2 px-3 min-w-[120px] max-w-[200px] text-xs cursor-pointer border-r border-white/5 transition-colors relative flex-shrink-0
                         ${activeFile?.id === file.id ? 'bg-[#0d0d0f] text-cyan-400 font-medium' : 'bg-[#0a0a0c] text-gray-500 hover:bg-[#15151a] hover:text-gray-300'}
                     `}
                 >
@@ -274,7 +274,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
                     <span className="truncate flex-grow">{file.name}</span>
                     <button 
                         onClick={(e) => { e.stopPropagation(); onCloseFile(file); }}
-                        className={`p-0.5 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-white/10 ${activeFile?.id === file.id ? 'text-cyan-600 hover:text-cyan-400' : 'text-gray-600 hover:text-gray-400'}`}
+                        className={`p-0.5 rounded-sm opacity-0 group-hover:opacity-100 hover:bg-white/10 flex-shrink-0 ${activeFile?.id === file.id ? 'text-cyan-600 hover:text-cyan-400' : 'text-gray-600 hover:text-gray-400'}`}
                     >
                         <CloseIcon className="w-3 h-3" />
                     </button>

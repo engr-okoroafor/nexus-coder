@@ -129,7 +129,7 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
     );
 
     return (
-        <div className="bg-black/30 p-2 flex flex-col h-full w-full" ref={previewContainerRef}>
+        <div className="bg-black/30 p-2 flex flex-col h-full w-full overflow-hidden" ref={previewContainerRef}>
             <div className="flex-shrink-0 flex items-center justify-between gap-2 p-2 bg-black/20 rounded-t-xl">
                 <div className="flex items-center gap-2">
                     <Tooltip text="Reload preview" position="bottom" align="start">
@@ -154,7 +154,7 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
                 )}
                 <div className="w-24"></div>
             </div>
-            <div className="flex-grow flex items-center justify-center bg-black/20 rounded-b-xl overflow-hidden relative">
+            <div className="flex-grow flex items-center justify-center bg-black/20 rounded-b-xl overflow-auto relative">
                  {/* Adaptive Futuristic Overlay */}
                  {isBuilding && (
                     <div className={`absolute z-50 flex items-center justify-center pointer-events-none transition-all duration-500 ease-in-out ${
