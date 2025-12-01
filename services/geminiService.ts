@@ -15,25 +15,15 @@ const getApiKey = () => {
     return process.env.API_KEY || process.env.GEMINI_API_KEY || importMetaEnv?.VITE_GEMINI_API_KEY || '';
 };
 
-// Lazy initialization - only create GoogleGenAI instance when needed
-let geminiAi: GoogleGenAI | null = null;
+// Initialize with API key - will throw error if not set, which is caught by ErrorBoundary
+const API_KEY = getApiKey();
+if (!API_KEY) {
+    console.error('❌ CRITICAL: GEMINI_API_KEY not found!');
+    console.error('Please set VITE_GEMINI_API_KEY in your Netlify environment variables.');
+    console.error('The app will not function without an API key.');
+}
 
-const getGeminiAi = (): GoogleGenAI => {
-    if (!geminiAi) {
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            console.error('❌ GEMINI_API_KEY not found! Please set VITE_GEMINI_API_KEY in Netlify environment variables.');
-            throw new Error('GEMINI_API_KEY is required. Please set VITE_GEMINI_API_KEY in your Netlify environment variables.');
-        }
-        try {
-            geminiAi = new GoogleGenAI({ apiKey });
-        } catch (error) {
-            console.error('Failed to initialize GoogleGenAI:', error);
-            throw new Error('Failed to initialize AI service. Please check your API key configuration.');
-        }
-    }
-    return geminiAi;
-};
+const geminiAi = new GoogleGenAI({ apiKey: API_KEY || 'dummy-key-will-fail' });
 
 // ... existing helper functions ...
 // ... existing RateLimiter setup ...
@@ -162,7 +152,7 @@ async function searchWithGoogle(userPrompt: string, signal?: AbortSignal): Promi
     if (signal?.aborted) throw new Error('Aborted');
 
     try {
-        const result = await retryWithBackoff<GenerateContentResponse>(() => getGeminiAi().models.generateContent({
+        const result = await retryWithBackoff<GenerateContentResponse>(() => geminiAi.models.generateContent({
             model,
             contents: `User Query: "${userPrompt}"
             
@@ -344,7 +334,7 @@ async function callGeminiApi(model: string, systemInstruction: string, userPromp
     if (signal?.aborted) throw new Error('Aborted');
     
     try {
-        const result = await retryWithBackoff<GenerateContentResponse>(() => getGeminiAi().models.generateContent({
+        const result = await retryWithBackoff<GenerateContentResponse>(() => geminiAi.models.generateContent({
             model,
             contents: userPrompt,
             config: {
