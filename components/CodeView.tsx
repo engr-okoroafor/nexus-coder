@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Editor } from './Editor'; // Assuming Editor is the Monaco wrapper or similar
 import { CodeEditor } from './CodeEditor';
 import { Preview } from './Preview';
 import { FileNode, ViewMode, AgentStatus, SearchResult } from '../types';
