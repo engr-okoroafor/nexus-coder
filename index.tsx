@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './ErrorBoundary';
 
-console.log('🚀 Nexus Coder initializing...');
+console.log('🚀 Nexus Coder initializing... (Build: 2025-12-01-v3)');
 
 try {
   const rootElement = document.getElementById('root');

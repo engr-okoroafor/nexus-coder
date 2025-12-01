@@ -22,10 +22,15 @@ const getGeminiAi = (): GoogleGenAI => {
     if (!geminiAi) {
         const apiKey = getApiKey();
         if (!apiKey) {
-            console.warn('⚠️ GEMINI_API_KEY not found! Please set VITE_GEMINI_API_KEY in Netlify environment variables.');
-            // Return instance with placeholder - will fail gracefully when API is called
+            console.error('❌ GEMINI_API_KEY not found! Please set VITE_GEMINI_API_KEY in Netlify environment variables.');
+            throw new Error('GEMINI_API_KEY is required. Please set VITE_GEMINI_API_KEY in your Netlify environment variables.');
         }
-        geminiAi = new GoogleGenAI({ apiKey: apiKey || 'placeholder-key-not-set' });
+        try {
+            geminiAi = new GoogleGenAI({ apiKey });
+        } catch (error) {
+            console.error('Failed to initialize GoogleGenAI:', error);
+            throw new Error('Failed to initialize AI service. Please check your API key configuration.');
+        }
     }
     return geminiAi;
 };
