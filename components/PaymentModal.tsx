@@ -90,14 +90,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, planName = 
 
     return (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-            <div className="bg-[#0d0d12] border border-purple-500/30 rounded-3xl p-6 md:p-8 max-w-md w-full relative shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col max-h-[90vh] overflow-y-auto custom-scrollbar">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="bg-[#0d0d12] border border-purple-500/30 rounded-3xl p-6 max-w-md w-full relative shadow-[0_0_50px_rgba(168,85,247,0.15)]">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-all active:scale-90 z-10">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
                 
-                <div className="text-center mb-6">
+                <div className="text-center mb-4">
                     <h2 className="font-orbitron text-2xl text-white">Upgrade to <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">{planName}</span></h2>
                     <p className="text-gray-400 text-sm mt-1">Unlock autonomous power.</p>
                 </div>
@@ -206,7 +206,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, planName = 
                 <button 
                     onClick={handlePay}
                     disabled={isProcessing}
-                    className="w-full mt-8 text-base font-orbitron font-bold py-4 px-6 rounded-2xl bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 transition-all duration-300 transform hover:scale-[1.02] shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    className="w-full mt-8 text-base font-orbitron font-bold py-4 px-6 rounded-2xl bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                 >
                     {isProcessing ? (
                         <>

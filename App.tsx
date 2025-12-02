@@ -746,6 +746,44 @@ const App: React.FC = () => {
     setViewMode('preview'); // Show the legacy template
     addLog('Reset complete. Showing Kings Realtors legacy template.');
   };
+  
+  const handleReloadApp = () => {
+      // Save current session to history
+      if (workflowState.projectFiles.length > 0 && workflowState.projectName) {
+          const currentSession = {
+              projectName: workflowState.projectName,
+              projectFiles: workflowState.projectFiles,
+              missionPrompt: missionPrompt,
+              tasks: workflowState.tasks,
+              agentStatus: workflowState.agentStatus,
+              timestamp: Date.now()
+          };
+          const existingSessions = JSON.parse(localStorage.getItem('nexus-coder-session-history') || '[]');
+          existingSessions.unshift(currentSession);
+          // Keep only last 20 sessions
+          localStorage.setItem('nexus-coder-session-history', JSON.stringify(existingSessions.slice(0, 20)));
+          addLog(`✓ Session saved to history: "${workflowState.projectName}"`);
+      }
+      
+      // Reload to default legacy template
+      const legacyTemplate = LEGACY_TEMPLATES.realEstate;
+      setWorkflowState({
+          ...getInitialState(),
+          projectFiles: JSON.parse(JSON.stringify(legacyTemplate.files)),
+          projectName: legacyTemplate.name,
+          agentLogs: ['🔄 App reloaded. Previous session saved to history.', 'Agent ready.'],
+      });
+      
+      const htmlFile = findHtmlFile(legacyTemplate.files);
+      if (htmlFile?.content) {
+          setGeneratedMarkup(htmlFile.content);
+      }
+      
+      setMissionPrompt('');
+      fileHistoriesRef.current = {};
+      setViewMode('preview');
+      addLog('🔄 App reloaded successfully. Access previous sessions from history.');
+  };
 
   const stopAgent = () => {
       if (isRunningRef.current) {
@@ -1035,18 +1073,41 @@ Simply describe what you want to build, and I'll:
     }
 
     try {
+      // Detect if this is an incremental improvement (user has existing project files)
+      const isIncrementalImprovement = state.projectFiles.length > 0 && state.agentStatus === 'planning';
+      
       if (state.agentStatus === 'planning') {
-        const plan = await generatePlan(state.prompt, selectedModel, state.uploadedFiles, appSettings, controller.signal);
-        if (controller.signal.aborted) throw new Error('Aborted');
-        
-        state.tasks = plan.map(task => ({ description: task, status: 'pending' as const }));
-        
-        setState(prev => ({ ...prev, agentStatus: 'architecting', statusMessage: 'Architect Agent: Designing system structure...', tasks: state.tasks }));
-        addLog('Architect Agent: Defining project structure...');
-        const structure = await architectProject(state.prompt, selectedModel, appSettings, controller.signal);
-        state.projectFiles = structure;
-        
-        setState(prev => ({ ...prev, projectFiles: structure, agentStatus: 'coding' }));
+        if (isIncrementalImprovement) {
+          // Incremental mode: Create focused tasks for refinement
+          addLog('🔄 Incremental Improvement Mode: Analyzing existing project...');
+          setState(prev => ({ ...prev, statusMessage: 'Analyzing existing project for improvements...' }));
+          
+          const plan = await generatePlan(
+            `INCREMENTAL IMPROVEMENT: ${state.prompt}\n\nExisting project has ${state.projectFiles.length} files. Only modify/add what's needed for this specific request.`, 
+            selectedModel, 
+            state.uploadedFiles, 
+            appSettings, 
+            controller.signal
+          );
+          if (controller.signal.aborted) throw new Error('Aborted');
+          
+          state.tasks = plan.map(task => ({ description: task, status: 'pending' as const }));
+          setState(prev => ({ ...prev, agentStatus: 'coding', tasks: state.tasks }));
+          addLog('✓ Incremental improvement plan created. Preserving existing files.');
+        } else {
+          // Fresh build mode
+          const plan = await generatePlan(state.prompt, selectedModel, state.uploadedFiles, appSettings, controller.signal);
+          if (controller.signal.aborted) throw new Error('Aborted');
+          
+          state.tasks = plan.map(task => ({ description: task, status: 'pending' as const }));
+          
+          setState(prev => ({ ...prev, agentStatus: 'architecting', statusMessage: 'Architect Agent: Designing system structure...', tasks: state.tasks }));
+          addLog('Architect Agent: Defining project structure...');
+          const structure = await architectProject(state.prompt, selectedModel, appSettings, controller.signal);
+          state.projectFiles = structure;
+          
+          setState(prev => ({ ...prev, projectFiles: structure, agentStatus: 'coding' }));
+        }
       }
 
       // --- PARALLEL TASK EXECUTION for faster builds ---
@@ -1280,11 +1341,37 @@ Simply describe what you want to build, and I'll:
         )}
         {isBillingOpen && <Billing onClose={() => setBillingOpen(false)} />}
         {isTemplateModalOpen && <ProjectTemplateModal templates={ALL_TEMPLATES} onClose={() => setTemplateModalOpen(false)} onSelect={(name) => { 
+             // Save current project to history before creating new one
+             if (workflowState.projectFiles.length > 0 && workflowState.projectName) {
+                 const currentProjectSession = {
+                     projectName: workflowState.projectName,
+                     projectFiles: workflowState.projectFiles,
+                     missionPrompt: missionPrompt,
+                     timestamp: Date.now()
+                 };
+                 const existingSessions = JSON.parse(localStorage.getItem('nexus-coder-project-history') || '[]');
+                 existingSessions.unshift(currentProjectSession);
+                 // Keep only last 10 projects
+                 localStorage.setItem('nexus-coder-project-history', JSON.stringify(existingSessions.slice(0, 10)));
+                 addLog(`✓ Saved "${workflowState.projectName}" to project history.`);
+             }
+             
              saveSessionToStorage();
              const template = ALL_TEMPLATES.find(t => t.name === name);
              if(template) {
-                setWorkflowState({ ...getInitialState(), projectFiles: template.files, projectName: name });
+                // Initialize fresh dashboard
+                setWorkflowState({ 
+                    ...getInitialState(), 
+                    projectFiles: template.files, 
+                    projectName: name,
+                    agentLogs: [`New project initialized: ${name}`, 'Agent ready. Provide a prompt to begin.'],
+                    tasks: [],
+                    problems: []
+                });
+                setMissionPrompt('');
+                setGeneratedMarkup('');
                 setTemplateModalOpen(false);
+                addLog(`🚀 New project "${name}" initialized. Dashboard reset.`);
              }
         }} />}
         {isProfileModalOpen && <ProfileModal user={user} onClose={() => setProfileModalOpen(false)} onSave={(u) => setUser(u)} />}
@@ -1315,6 +1402,7 @@ Simply describe what you want to build, and I'll:
                 onDownloadProject={handleDownloadProject}
                 onGitHubImport={() => setGitHubImportModalOpen(true)}
                 onDeploy={() => setDeployModalOpen(true)}
+                onReloadApp={handleReloadApp}
                 onVersionHistory={() => setVersionHistoryModalOpen(true)}
                 onOpenProfile={() => setProfileModalOpen(true)}
                 onOpenSettings={() => setSettingsModalOpen(true)}

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StripeIcon, PayPalIcon, GooglePayIcon, PaystackIcon } from './PaymentIcons';
 import { PaymentModal } from './PaymentModal';
 
-type Tab = 'plan' | 'payment' | 'history';
+type Tab = 'plan' | 'history';
 
 const TabButton: React.FC<{ active: boolean; onClick: () => void; children: React.ReactNode }> = ({ active, onClick, children }) => (
     <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 transition-colors ${active ? 'border-cyan-400 text-cyan-300' : 'border-transparent text-gray-400 hover:text-white hover:border-cyan-400/50'}`}>
@@ -12,14 +12,14 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
 
 export const Billing: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<Tab>('plan');
-  const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{name: string, price: number} | null>(null);
 
   return (
     <>
-      {isPaymentModalOpen && <PaymentModal onClose={() => setPaymentModalOpen(false)} />}
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      {selectedPlan && <PaymentModal onClose={() => setSelectedPlan(null)} planName={selectedPlan.name} monthlyPrice={selectedPlan.price} />}
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
         <div className="bg-gray-900/70 border border-purple-500/30 rounded-3xl p-8 max-w-3xl w-full relative shadow-2xl shadow-purple-500/20">
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-all active:scale-90">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -29,42 +29,41 @@ export const Billing: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
           <div className="border-b border-white/10 mb-6">
               <TabButton active={activeTab === 'plan'} onClick={() => setActiveTab('plan')}>My Plan</TabButton>
-              <TabButton active={activeTab === 'payment'} onClick={() => setActiveTab('payment')}>Payment Methods</TabButton>
               <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')}>Billing History</TabButton>
           </div>
 
           <div>
               {activeTab === 'plan' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="border border-cyan-500/30 rounded-3xl p-6 bg-black/30 flex flex-col">
-                          <h3 className="font-orbitron text-xl text-cyan-300">Free</h3>
-                          <p className="text-3xl font-bold my-4">0<span className="text-base font-normal text-gray-400">/month</span></p>
-                          <ul className="space-y-2 text-sm text-gray-300 flex-grow">
-                          <li>300,000 daily tokens</li>
-                          <li>Basic code generation</li>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="border border-cyan-500/30 rounded-3xl p-4 bg-black/30 flex flex-col">
+                          <h3 className="font-orbitron text-lg text-cyan-300">Free</h3>
+                          <p className="text-2xl font-bold my-3">$0<span className="text-sm font-normal text-gray-400">/mo</span></p>
+                          <ul className="space-y-1.5 text-xs text-gray-300 flex-grow">
+                          <li>• 300K daily tokens</li>
+                          <li>• Basic code generation</li>
                           </ul>
-                          <button disabled className="mt-6 w-full py-2 rounded-full bg-gray-700 text-gray-400 cursor-not-allowed">Current Plan</button>
+                          <button disabled className="mt-4 w-full py-2 text-sm rounded-full bg-gray-700 text-gray-400 cursor-not-allowed">Current Plan</button>
                       </div>
-                      <div className="border border-purple-500/30 rounded-3xl p-6 bg-black/30 flex flex-col ring-2 ring-purple-500 shadow-lg shadow-purple-500/30">
-                          <h3 className="font-orbitron text-xl text-purple-300">Pro</h3>
-                          <p className="text-3xl font-bold my-4">$20<span className="text-base font-normal text-gray-400">/month</span></p>
-                          <ul className="space-y-2 text-sm text-gray-300 flex-grow">
-                          <li>10,000,000 monthly tokens</li>
-                          <li>Advanced models & agents</li>
-                          <li>Connect private repos</li>
+                      <div className="border border-purple-500/30 rounded-3xl p-4 bg-black/30 flex flex-col ring-2 ring-purple-500 shadow-lg shadow-purple-500/30">
+                          <h3 className="font-orbitron text-lg text-purple-300">Pro</h3>
+                          <p className="text-2xl font-bold my-3">$20<span className="text-sm font-normal text-gray-400">/mo</span></p>
+                          <ul className="space-y-1.5 text-xs text-gray-300 flex-grow">
+                          <li>• 10M monthly tokens</li>
+                          <li>• Advanced models</li>
+                          <li>• Private repos</li>
                           </ul>
-                          <button onClick={() => setPaymentModalOpen(true)} className="mt-6 w-full py-2 rounded-full bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 transition-all">Upgrade</button>
+                          <button onClick={() => setSelectedPlan({name: 'Pro', price: 20})} className="mt-4 w-full py-2 text-sm rounded-full bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 transition-all transform hover:scale-105 active:scale-95 active:shadow-[0_0_20px_rgba(168,85,247,0.4)]">Upgrade to Pro</button>
                       </div>
-                  </div>
-              )}
-              {activeTab === 'payment' && (
-                  <div>
-                      <h3 className="text-lg font-orbitron text-purple-300 mb-4">Add Payment Method</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"><StripeIcon className="h-8"/></div>
-                          <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"><PayPalIcon className="h-8"/></div>
-                          <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"><GooglePayIcon className="h-8"/></div>
-                          <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center cursor-pointer hover:bg-white/10 transition-colors"><PaystackIcon className="h-8"/></div>
+                      <div className="border border-orange-500/30 rounded-3xl p-4 bg-black/30 flex flex-col ring-2 ring-orange-500 shadow-lg shadow-orange-500/30">
+                          <h3 className="font-orbitron text-lg text-orange-300">Titan</h3>
+                          <p className="text-2xl font-bold my-3">$50<span className="text-sm font-normal text-gray-400">/mo</span></p>
+                          <ul className="space-y-1.5 text-xs text-gray-300 flex-grow">
+                          <li>• Unlimited tokens</li>
+                          <li>• Dedicated GPU cluster</li>
+                          <li>• Team collaboration</li>
+                          <li>• 24/7 priority support</li>
+                          </ul>
+                          <button onClick={() => setSelectedPlan({name: 'Titan', price: 50})} className="mt-4 w-full py-2 text-sm rounded-full bg-gradient-to-r from-orange-600 to-yellow-500 hover:from-orange-500 hover:to-yellow-400 transition-all transform hover:scale-105 active:scale-95 active:shadow-[0_0_20px_rgba(249,115,22,0.4)]">Go Titan</button>
                       </div>
                   </div>
               )}

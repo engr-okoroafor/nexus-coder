@@ -259,7 +259,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
         )}
 
         {/* Editor Tabs with Horizontal Scrolling */}
-        <div className="relative flex h-11 bg-[#0a0a0c] border-b border-white/10 select-none group">
+        <div className="relative flex h-9 bg-[#0a0a0c] border-b border-white/10 select-none group">
             {openFiles.length > 3 && (
                 <>
                     <button 
@@ -267,18 +267,18 @@ export const CodeView: React.FC<CodeViewProps> = ({
                             const container = document.getElementById('tabs-container');
                             if (container) container.scrollBy({ left: -200, behavior: 'smooth' });
                         }}
-                        className="absolute left-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-r from-[#0a0a0c] to-transparent flex items-center justify-center text-cyan-400 hover:text-cyan-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] opacity-0 group-hover:opacity-100 transition-all"
                     >
-                        <ChevronIcon direction="left" className="w-4 h-4" />
+                        <ChevronIcon direction="left" className="w-3 h-3" />
                     </button>
                     <button 
                         onClick={() => {
                             const container = document.getElementById('tabs-container');
                             if (container) container.scrollBy({ left: 200, behavior: 'smooth' });
                         }}
-                        className="absolute right-0 top-0 bottom-0 z-10 w-8 bg-gradient-to-l from-[#0a0a0c] to-transparent flex items-center justify-center text-cyan-400 hover:text-cyan-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] opacity-0 group-hover:opacity-100 transition-all"
                     >
-                        <ChevronIcon direction="right" className="w-4 h-4" />
+                        <ChevronIcon direction="right" className="w-3 h-3" />
                     </button>
                 </>
             )}
@@ -296,13 +296,13 @@ export const CodeView: React.FC<CodeViewProps> = ({
                         key={`${file.id}-${index}`}
                         onClick={() => onActivateFile(file)}
                         className={`
-                            group/tab flex items-center gap-2 px-4 text-sm cursor-pointer border-r border-white/5 transition-colors relative flex-shrink-0
-                            ${activeFile?.id === file.id ? 'bg-[#0d0d0f] text-cyan-400 font-medium' : 'bg-[#0a0a0c] text-gray-500 hover:bg-[#15151a] hover:text-gray-300'}
+                            group/tab flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer border-r border-white/5 transition-colors relative flex-shrink-0
+                            ${activeFile?.id === file.id ? 'bg-[#0d0d0f] text-cyan-400 font-semibold' : 'bg-[#0a0a0c] text-gray-500 hover:bg-[#15151a] hover:text-gray-300'}
                         `}
-                        style={{ minWidth: openFiles.length === 1 ? '200px' : '140px', maxWidth: '220px' }}
+                        style={{ minWidth: openFiles.length === 1 ? '200px' : '150px', maxWidth: '240px' }}
                     >
                         {activeFile?.id === file.id && <div className="absolute top-0 left-0 right-0 h-0.5 bg-cyan-500 shadow-[0_0_8px_#22d3ee]"></div>}
-                        <span className="truncate flex-grow">{file.name}</span>
+                        <span className="truncate flex-grow font-semibold text-[12px]">{file.name}</span>
                         <button 
                             onClick={(e: any) => { e.stopPropagation(); onCloseFile(file); }}
                             className={`p-0.5 rounded-sm ${openFiles.length === 1 ? 'opacity-100' : 'opacity-0 group-hover/tab:opacity-100'} hover:bg-white/10 flex-shrink-0 ${activeFile?.id === file.id ? 'text-cyan-600 hover:text-cyan-400' : 'text-gray-600 hover:text-gray-400'}`}
@@ -311,7 +311,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
                         </button>
                     </div>
                 )) : (
-                    <div className="px-4 py-2 text-xs text-gray-500">No files open</div>
+                    <div className="px-3 py-1.5 text-xs text-gray-500">No files open</div>
                 )}
             </div>
         </div>

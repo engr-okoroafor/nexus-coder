@@ -64,14 +64,14 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ options, value, onCh
                 type="button"
                 onClick={handleToggle}
                 disabled={disabled}
-                className={`appearance-none cursor-pointer bg-purple-500/20 border border-purple-500/50 text-purple-200 rounded-lg text-xs px-3 py-2.5 focus:ring-2 focus:ring-purple-400 focus:outline-none font-semibold transition-all duration-300 hover:border-purple-400 w-full flex items-center justify-between ${isAnimating ? 'animate-flash' : ''}`}
+                className={`appearance-none cursor-pointer bg-purple-500/20 border border-purple-500/50 text-purple-200 rounded-3xl text-xs px-3 py-2.5 focus:ring-2 focus:ring-purple-400 focus:outline-none font-normal transition-all duration-300 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] w-full flex items-center justify-between ${isAnimating ? 'animate-flash' : ''}`}
             >
                 <span className="truncate max-w-[120px]">{value}</span>
                 <ChevronIcon direction="down" isOpen={isOpen} className="w-4 h-4 text-purple-300 ml-2 flex-shrink-0" />
             </button>
             {isOpen && (
                 <div
-                    className={`absolute z-20 w-full bg-gray-800/90 backdrop-blur-md border border-purple-500/50 rounded-lg shadow-2xl py-1 mt-1 transition-all duration-300 ${position === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'}`}
+                    className={`absolute z-20 w-full bg-gray-800/90 backdrop-blur-md border border-purple-500/50 rounded-3xl shadow-2xl py-1 mt-1 transition-all duration-300 ${position === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'}`}
                 >
                     {options.map(option => (
                         <button

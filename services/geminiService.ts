@@ -515,16 +515,41 @@ export const generatePlan = async (prompt: string, model: string, uploadedFiles:
 
 export const architectProject = async (prompt: string, model: string, appSettings: AppSettings, signal?: AbortSignal): Promise<FileNode[]> => {
     if (signal?.aborted) throw new Error('Aborted');
-    const systemInstruction = `You are an **Architect Agent**.
-    TASK: Define the initial file structure WITH BASIC CONTENT.
-    MANDATES:
-    - **Clean Structure**: Do NOT create redundant nested folders like 'src/src'.
-    - **Basic Content**: Create files with MINIMAL boilerplate content (not empty).
-    - **Essential Files**: Include index.html, package.json, README.md, etc.
-    - **Flutter**: If Flutter requested, use 'lib', 'pubspec.yaml'.
-    - **Web Projects**: MUST include index.html with basic HTML structure.
-    OUTPUT: JSON object with a "files" array.`;
-    const userPrompt = `Request: "${prompt}"\n\nGenerate initial project structure with basic file content.`;
+    const systemInstruction = `You are an **Architect Agent** - Expert in selecting optimal tech stacks.
+    
+    TASK: Analyze requirements and select the BEST architecture and technology stack.
+    
+    **TECHNOLOGY SELECTION CRITERIA**:
+    1. **Web Apps**: React + Vite + Tailwind CSS (modern, fast, futuristic UI)
+    2. **Mobile Apps**: 
+       - React Native + Expo (cross-platform, fast development)
+       - Flutter (high performance, beautiful UI)
+    3. **Full-Stack**: Next.js (SSR, API routes, SEO)
+    4. **Backend**: Node.js + Express (simple) OR Python + FastAPI (data-heavy)
+    5. **Real-time**: Socket.io or WebSockets
+    6. **Database**: Firebase (quick), PostgreSQL (production), MongoDB (flexible)
+    
+    **ARCHITECTURE PATTERNS**:
+    - SPA (Single Page App) for dashboards
+    - SSR (Server-Side Rendering) for SEO-critical sites
+    - PWA (Progressive Web App) for offline capability
+    - Microservices for scalable backends
+    
+    **FILE STRUCTURE MANDATES**:
+    - **Clean Structure**: Do NOT create redundant nested folders like 'src/src'
+    - **Basic Content**: Create files with MINIMAL boilerplate content (not empty)
+    - **Essential Files**: Include index.html, package.json, README.md, tailwind.config.js
+    - **Web Projects**: MUST include index.html with futuristic Tailwind CSS styling
+    - **Mobile**: React Native (App.js, package.json) OR Flutter (lib/main.dart, pubspec.yaml)
+    
+    **FUTURISTIC STARTER TEMPLATE**:
+    - Include Tailwind CSS with custom config (neon colors, glassmorphism)
+    - Add basic components: Navbar (floating, rounded-3xl), Hero, Footer
+    - Include animations and transitions
+    - Mobile-responsive from the start
+    
+    OUTPUT: JSON object with a "files" array containing the optimal architecture.`;
+    const userPrompt = `Request: "${prompt}"\n\nAnalyze and select the best technology stack, then generate initial project structure with basic futuristic content.`;
     const responseText = await generateContent(model, systemInstruction, userPrompt, appSettings, { type: Type.OBJECT, properties: { files: { type: Type.ARRAY, items: fileSchema } } }, signal);
     try { const res = JSON.parse(responseText); return res.files || []; } catch { return []; }
 }
@@ -552,13 +577,36 @@ export const implementTask = async (
     - **Backend Engineer**: Secure, scalable APIs (Node/Python/Go).
     - **Mobile Dev**: Expert in React Native (Expo) AND Flutter (Dart).
     
+    **FUTURISTIC UI REQUIREMENTS (MANDATORY)**:
+    1. **Curved Elements**: Use rounded-3xl (24px) for ALL buttons, cards, inputs, and containers
+    2. **Neon Accents**: Add cyan/purple/green neon glows:
+       - Cyan: box-shadow: 0 0 20px rgba(6,182,212,0.5)
+       - Purple: box-shadow: 0 0 20px rgba(168,85,247,0.5)
+       - Green: box-shadow: 0 0 20px rgba(34,197,94,0.5)
+    3. **Color Palette**: Use cyan-400, purple-500, emerald-500/green-500 for accents
+    4. **Glassmorphism**: Use backdrop-blur-lg, bg-white/10, border border-white/20
+    5. **Gradients**: Multi-color gradients (purple-cyan-emerald-green) for CTAs and headers
+    6. **Animations**: Add hover:scale-105, transition-all duration-300, animate-fade-in
+    7. **Mobile Menu**: Hamburger icon (☰) for mobile, floating navbar with rounded-3xl
+    8. **Back to Top**: Floating button (bottom-right) with smooth scroll, rounded-full, green accent
+    9. **Responsive**: Mobile-first design, breakpoints: sm:, md:, lg:
+    10. **Interactive**: ALL buttons must have onClick handlers and be functional
+    11. **Modern Stack**: Use Tailwind CSS for styling, ensure all classes are valid
+    
+    **FUNCTIONAL REQUIREMENTS**:
+    - Every button MUST have working onClick/onSubmit handlers
+    - Forms must have proper state management and validation
+    - Navigation links must work (use # anchors or routing)
+    - Mobile menu must toggle open/close
+    - Back to top button must scroll to top smoothly
+    
     **MANDATES (CRITICAL)**:
     1. **COMPLETE CODE**: Write EVERY line. No "// ... rest of code" or placeholders.
     2. **PARALLEL WORK**: Generate ALL files for this task in ONE response. Work fast.
     3. **SYNTAX**: Ensure Python indentation correct, no unclosed dicts.
     4. **IMPORTS**: Fix missing imports.
     5. **HTML FIRST**: If building UI, create index.html FIRST for real-time preview.
-    6. **Docker**: Use 'COPY backend/ .' not 'COPY backend/ ./backend' to avoid nesting.
+    6. **FUNCTIONAL**: All interactive elements MUST work (buttons, forms, navigation).
     
     **SPEED OPTIMIZATION**: 
     - Batch file creation - create 5-10 files at once
@@ -569,9 +617,15 @@ export const implementTask = async (
 
     const fullPrompt = `Goal: "${prompt}"
     Task: "${task}"
-    ${resumeContext ? `\nUSER FEEDBACK: "${resumeContext}"` : ''}
+    ${resumeContext ? `\n**USER REFINEMENT REQUEST**: "${resumeContext}"\n**IMPORTANT**: This is an INCREMENTAL improvement. DO NOT rebuild from scratch. ONLY modify the specific files/features mentioned by the user. Preserve ALL existing functionality and files.` : ''}
     ${lastError ? `PREVIOUS ERROR: ${lastError}` : ''}
-    Current Files:\n${formatFilesForPrompt(currentFiles)}\nGenerate JSON.`;
+    
+    **Current Project State**:
+    ${formatFilesForPrompt(currentFiles)}
+    
+    ${resumeContext ? '**INCREMENTAL MODE**: Only update/add files related to the user feedback. Keep everything else intact.' : '**BUILD MODE**: Generate all necessary files for this task.'}
+    
+    Generate JSON.`;
 
     const responseText = await generateContent(model, systemInstruction, fullPrompt, appSettings, implementTaskResponseSchema, signal);
     if (signal?.aborted) throw new Error('Aborted');

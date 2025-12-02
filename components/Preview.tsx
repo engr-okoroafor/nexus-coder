@@ -146,7 +146,7 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
                     </Tooltip>
                 </div>
                  {!isMobileProject && (
-                    <div className="flex items-center gap-2 pr-4">
+                    <div className="flex items-center gap-2 pr-6">
                         <DeviceButton onClick={() => setDeviceMode('desktop')} isActive={deviceMode === 'desktop'} tooltipText="Desktop view"><DesktopIcon className="w-5 h-5" /></DeviceButton>
                         <DeviceButton onClick={() => setDeviceMode('tablet')} isActive={deviceMode === 'tablet'} tooltipText="Tablet view"><TabletIcon className="w-5 h-5" /></DeviceButton>
                         <DeviceButton onClick={() => setDeviceMode('mobile')} isActive={deviceMode === 'mobile'} tooltipText="Mobile view"><MobileIcon className="w-5 h-5" /></DeviceButton>

@@ -84,7 +84,7 @@ const PricingModal: React.FC<{ onClose: () => void, onLaunch: () => void }> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
              {selectedPlan && (
                 <PaymentModal 
                     onClose={() => setSelectedPlan(null)} 
@@ -93,47 +93,42 @@ const PricingModal: React.FC<{ onClose: () => void, onLaunch: () => void }> = ({
                 />
              )}
              
-             <div className="relative w-full max-w-6xl bg-[#0d0d12] border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-cyan-500 to-emerald-500"></div>
+             <div className="relative w-full max-w-4xl bg-[#0d0d12] border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+                <button 
+                    onClick={onClose} 
+                    className="absolute top-4 left-4 z-20 flex items-center gap-2 text-gray-400 hover:text-white transition-colors group"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    <span className="font-orbitron text-xs font-bold tracking-wider">BACK TO HOME</span>
+                </button>
                 
-                {/* Header Section */}
-                <div className="p-6 md:p-8 flex justify-between items-center border-b border-white/5 bg-white/5 backdrop-blur-md sticky top-0 z-10">
-                    <button 
-                        onClick={onClose} 
-                        className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors group"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        <span className="font-orbitron text-sm font-bold tracking-wider">BACK TO HOME</span>
-                    </button>
-                    
-                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
+                <button onClick={onClose} className="absolute top-4 right-4 z-20 text-gray-400 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
 
-                <div className="p-3 md:p-4 overflow-hidden">
-                    <div className="text-center mb-3">
-                        <h2 className="text-xl md:text-2xl font-orbitron font-bold text-white mb-1 tracking-wider">
+                <div className="p-8">
+                    <div className="text-center mb-6">
+                        <h2 className="text-2xl font-orbitron font-bold text-white mb-2 tracking-wider">
                             CHOOSE YOUR <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">POWER</span>
                         </h2>
-                        <p className="text-gray-400 text-xs md:text-sm">Scale your autonomous development capabilities.</p>
+                        <p className="text-gray-400 text-sm">Scale your autonomous development capabilities.</p>
                         
                         {/* Currency Switcher */}
-                        <div className="flex justify-center mt-2">
-                            <div className="bg-gray-900/80 p-0.5 rounded-full border border-purple-500/30 flex relative">
+                        <div className="flex justify-center mt-4">
+                            <div className="bg-gray-900/80 p-1 rounded-full border border-purple-500/30 flex">
                                 <button 
                                     onClick={() => setCurrency('USD')}
-                                    className={`px-3 py-1 rounded-full text-[10px] font-bold font-orbitron transition-all duration-300 ${currency === 'USD' ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'text-gray-400 hover:text-white'}`}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold font-orbitron transition-all duration-300 ${currency === 'USD' ? 'bg-gradient-to-r from-purple-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     USD
                                 </button>
                                 <button 
                                     onClick={() => setCurrency('NGN')}
-                                    className={`px-3 py-1 rounded-full text-[10px] font-bold font-orbitron transition-all duration-300 ${currency === 'NGN' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'text-gray-400 hover:text-white'}`}
+                                    className={`px-4 py-1.5 rounded-full text-xs font-bold font-orbitron transition-all duration-300 ${currency === 'NGN' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     NGN
                                 </button>
@@ -141,7 +136,7 @@ const PricingModal: React.FC<{ onClose: () => void, onLaunch: () => void }> = ({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[calc(100vh-250px)] overflow-y-auto custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* Free Tier */}
                         <div className="relative group h-full">
                             <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent rounded-[2rem] blur-xl group-hover:blur-2xl transition-all opacity-0 group-hover:opacity-100"></div>

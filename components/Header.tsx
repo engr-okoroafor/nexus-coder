@@ -21,12 +21,13 @@ interface HeaderProps {
     isRepoInitialized: boolean;
     onInitRepo: () => void;
     onCommit: () => void;
+    onReloadApp: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
     user, isPwaInstallable, onInstallClick, onSaveAll,
     onCopyProject, onDownloadProject, onGitHubImport, onDeploy, onVersionHistory,
-    onOpenProfile, onOpenSettings, onLogout, onShare, isRepoInitialized, onInitRepo, onCommit
+    onOpenProfile, onOpenSettings, onLogout, onShare, isRepoInitialized, onInitRepo, onCommit, onReloadApp
 }) => {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -60,6 +61,14 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </Tooltip>
         )}
+
+        <Tooltip text="Reload App (Saves current session)" position="bottom" align="center">
+            <button onClick={onReloadApp} className="text-gray-400 hover:text-emerald-400 transition-colors">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
+        </Tooltip>
 
         <div className="h-6 w-px bg-white/10 mx-1"></div>
 

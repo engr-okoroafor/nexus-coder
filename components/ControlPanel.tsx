@@ -263,11 +263,8 @@ const TaskCard: React.FC<{ task: Task; index: number }> = ({ task, index }) => {
 }
 
 const TokenUsageBanner: React.FC<{onBillingClick: () => void}> = ({ onBillingClick }) => (
-    <div className="bg-gray-800/60 rounded-xl px-3 py-1.5 flex-grow text-center lg:text-left">
-        <p className="text-gray-300 text-xs">300K daily tokens remaining.</p>
-        <button onClick={onBillingClick} className="font-semibold text-blue-400 hover:text-blue-300 transition-colors text-xs">
-            Switch to Pro
-        </button>
+    <div className="bg-gray-800/60 rounded-xl px-2 py-1 text-center lg:text-left">
+        <p className="text-gray-400 text-[10px]">300K tokens • <button onClick={onBillingClick} className="font-semibold text-purple-400 hover:text-purple-300 transition-colors underline">Upgrade to Pro</button></p>
     </div>
 );
 
