@@ -41,6 +41,18 @@ interface ControlPanelProps {
   onLoadLegacyProject: (template: { name: string, files: FileNode[] }) => void;
 }
 
+const ImagePreview: React.FC<{ src: string; onRemove: () => void }> = ({ src, onRemove }) => (
+    <div className="relative inline-block mr-2 mb-2">
+        <img src={src} alt="Pasted" className="w-20 h-20 object-cover rounded-lg border border-cyan-500/30" />
+        <button 
+            onClick={onRemove}
+            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-red-600 transition-colors"
+        >
+            ×
+        </button>
+    </div>
+);
+
 const placeholderPrompts = [
   "Let's build a prototype to validate...",
   "Let's build a dashboard to track real-time KPIs for...",
@@ -52,15 +64,67 @@ const placeholderPrompts = [
   "Assembling a synthetic data generation hub for...",
 ];
 
-const codeUpgradeSuggestions = [
-    { short: "Add Dark Mode", full: "Implement a dark mode theme toggle that saves the user's preference in local storage." },
-    { short: "Improve Accessibility", full: "Audit and improve the application's accessibility (ARIA attributes, keyboard navigation, color contrast)." },
-    { short: "Animate Components", full: "Add subtle animations to key components like buttons and cards to improve user experience." },
-    { short: "Make it Responsive", full: "Ensure the application is fully responsive and looks great on mobile, tablet, and desktop screens." },
-    { short: "Add a Loading State", full: "Implement a global loading state for asynchronous actions to provide better user feedback." },
-    { short: "Refactor CSS", full: "Refactor the CSS to use variables for colors and spacing to improve maintainability."},
-    { short: "Implement Caching", full: "Add a caching layer for API responses to improve performance and reduce load times."}
-];
+const getContextAwareSuggestions = (missionPrompt: string, agentStatus: AgentStatus) => {
+    // Default suggestions
+    const defaultSuggestions = [
+        { short: "Add Dark Mode", full: "Implement a dark mode theme toggle that saves the user's preference in local storage." },
+        { short: "Make it Responsive", full: "Ensure the application is fully responsive and looks great on mobile, tablet, and desktop screens." },
+        { short: "Add Animations", full: "Add subtle animations to key components like buttons and cards to improve user experience." },
+    ];
+    
+    // If no mission, show generic suggestions
+    if (!missionPrompt) return defaultSuggestions;
+    
+    const prompt = missionPrompt.toLowerCase();
+    const suggestions = [];
+    
+    // Context-aware suggestions based on project type
+    if (prompt.includes('dashboard') || prompt.includes('analytics')) {
+        suggestions.push(
+            { short: "Add Charts", full: "Integrate Chart.js or Recharts for data visualization with interactive charts and graphs." },
+            { short: "Real-time Updates", full: "Implement WebSocket connections for real-time data updates in the dashboard." },
+            { short: "Export Data", full: "Add functionality to export dashboard data as CSV, PDF, or Excel files." }
+        );
+    } else if (prompt.includes('e-commerce') || prompt.includes('shop') || prompt.includes('store')) {
+        suggestions.push(
+            { short: "Add Cart", full: "Implement a shopping cart with add/remove items, quantity updates, and checkout flow." },
+            { short: "Payment Gateway", full: "Integrate Stripe or PayPal for secure payment processing." },
+            { short: "Product Search", full: "Add advanced product search with filters, sorting, and autocomplete." }
+        );
+    } else if (prompt.includes('blog') || prompt.includes('cms') || prompt.includes('content')) {
+        suggestions.push(
+            { short: "Rich Text Editor", full: "Add a WYSIWYG editor like TinyMCE or Quill for content creation." },
+            { short: "SEO Optimization", full: "Implement meta tags, sitemaps, and structured data for better SEO." },
+            { short: "Comments System", full: "Add a commenting system with moderation and reply functionality." }
+        );
+    } else if (prompt.includes('auth') || prompt.includes('login') || prompt.includes('user')) {
+        suggestions.push(
+            { short: "OAuth Login", full: "Add social login with Google, GitHub, or Facebook OAuth." },
+            { short: "2FA Security", full: "Implement two-factor authentication for enhanced security." },
+            { short: "Password Reset", full: "Add forgot password functionality with email verification." }
+        );
+    } else if (prompt.includes('real estate') || prompt.includes('property') || prompt.includes('listing')) {
+        suggestions.push(
+            { short: "Map Integration", full: "Add Google Maps or Mapbox to show property locations with markers." },
+            { short: "Image Gallery", full: "Implement a lightbox image gallery for property photos with zoom and slideshow." },
+            { short: "Filter & Search", full: "Add advanced filters for price range, bedrooms, location, and property type." }
+        );
+    } else {
+        // Generic improvements
+        suggestions.push(
+            { short: "Add Dark Mode", full: "Implement a dark mode theme toggle that saves the user's preference." },
+            { short: "Improve UX", full: "Add loading states, error handling, and success feedback for better user experience." },
+            { short: "Mobile First", full: "Optimize the UI for mobile devices with touch-friendly controls." }
+        );
+    }
+    
+    // Add status-specific suggestions
+    if (agentStatus === 'completed') {
+        suggestions.push({ short: "Deploy Now", full: "Deploy this application to Vercel, Netlify, or your preferred hosting platform." });
+    }
+    
+    return suggestions.slice(0, 7); // Max 7 suggestions
+};
 
 const useTypewriter = (words: string[], speed = 50, delay = 2000) => {
     const [text, setText] = useState('');
@@ -117,6 +181,22 @@ const TaskCard: React.FC<{ task: Task; index: number }> = ({ task, index }) => {
     const isCompleted = task.status === 'completed';
     const isInProgress = task.status === 'in-progress';
     const isPending = task.status === 'pending';
+    const isError = task.status === 'error';
+
+    // Get action icon
+    const getActionIcon = () => {
+        switch (task.action) {
+            case 'read': return '📖';
+            case 'write': return '✍️';
+            case 'search': return '🔍';
+            case 'edit': return '✏️';
+            case 'analyze': return '🔬';
+            case 'build': return '🔨';
+            case 'test': return '🧪';
+            case 'deploy': return '🚀';
+            default: return '⚡';
+        }
+    };
 
     return (
         <div 
@@ -126,6 +206,8 @@ const TaskCard: React.FC<{ task: Task; index: number }> = ({ task, index }) => {
                     ? 'bg-green-500/10 border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.15)]' 
                     : isInProgress 
                         ? 'bg-cyan-500/10 border-cyan-400/50 shadow-[0_0_25px_rgba(6,182,212,0.2)] scale-[1.02] ring-1 ring-cyan-400/30' 
+                        : isError
+                        ? 'bg-red-500/10 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
                         : 'bg-black/20 border-white/5 text-gray-500 opacity-80 hover:opacity-100 hover:bg-black/30'
                 }
             `}
@@ -137,23 +219,38 @@ const TaskCard: React.FC<{ task: Task; index: number }> = ({ task, index }) => {
                 </div>
             )}
             
+            {isCompleted && (
+                <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_10px_rgba(34,197,94,0.5)]">
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                </div>
+            )}
+            
             <div className="flex items-start gap-4">
                 <div className={`
                     flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border font-fira-code font-bold text-xs
                     ${isCompleted ? 'bg-green-500 text-black border-green-400 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 
                       isInProgress ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 
+                      isError ? 'bg-red-500/20 text-red-300 border-red-400' :
                       'bg-gray-800 text-gray-500 border-gray-700'}
                 `}>
                     {(index + 1).toString().padStart(2, '0')}
                 </div>
                 <div className="flex-grow min-w-0">
-                    <h4 className={`text-sm font-medium leading-relaxed break-words ${isCompleted ? 'text-green-200 line-through decoration-green-500/30' : isInProgress ? 'text-cyan-100' : 'text-gray-400'}`}>
+                    <h4 className={`text-sm font-medium leading-relaxed break-words ${
+                        isCompleted ? 'text-green-200' : 
+                        isInProgress ? 'text-cyan-100' : 
+                        isError ? 'text-red-200' :
+                        'text-gray-400'
+                    }`}>
                         {task.description}
                     </h4>
                     <div className="mt-2 flex items-center gap-2">
                         <span className={`text-[10px] uppercase tracking-wider font-bold font-orbitron px-2 py-0.5 rounded-full ${
                              isCompleted ? 'bg-green-500/20 text-green-400' : 
                              isInProgress ? 'bg-cyan-500/20 text-cyan-400' : 
+                             isError ? 'bg-red-500/20 text-red-400' :
                              'bg-gray-800 text-gray-600'
                         }`}>
                             {task.status}
@@ -166,9 +263,9 @@ const TaskCard: React.FC<{ task: Task; index: number }> = ({ task, index }) => {
 }
 
 const TokenUsageBanner: React.FC<{onBillingClick: () => void}> = ({ onBillingClick }) => (
-    <div className="bg-gray-800/60 rounded-xl px-4 py-2 flex-grow text-center lg:text-left">
-        <p className="text-gray-300 text-sm">300K daily tokens remaining.</p>
-        <button onClick={onBillingClick} className="font-semibold text-blue-400 hover:text-blue-300 transition-colors text-sm">
+    <div className="bg-gray-800/60 rounded-xl px-3 py-1.5 flex-grow text-center lg:text-left">
+        <p className="text-gray-300 text-xs">300K daily tokens remaining.</p>
+        <button onClick={onBillingClick} className="font-semibold text-blue-400 hover:text-blue-300 transition-colors text-xs">
             Switch to Pro
         </button>
     </div>
@@ -189,9 +286,9 @@ const CommandBarButton: React.FC<{tooltip: string, children: React.ReactNode, on
 const SuggestionBubble: React.FC<{ text: string; onClick: () => void }> = ({ text, onClick }) => (
     <button
         onClick={onClick}
-        className="flex-shrink-0 flex items-center gap-2 bg-purple-500/10 text-purple-200 px-3 py-1.5 rounded-full text-xs font-semibold hover:bg-purple-500/20 transition-colors"
+        className="flex-shrink-0 flex items-center gap-0.5 bg-purple-500/10 text-purple-200 px-1.5 py-0.5 rounded-full text-[9px] font-semibold hover:bg-purple-500/20 transition-colors"
     >
-        <LightbulbIcon className="w-4 h-4"/>
+        <LightbulbIcon className="w-2 h-2"/>
         <span>{text}</span>
     </button>
 );
@@ -223,6 +320,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   const recognitionRef = useRef<any>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [pastedImages, setPastedImages] = useState<string[]>([]);
 
   const [isSelectModalOpen, setSelectModalOpen] = useState(false);
   const [isDiscussModalOpen, setDiscussModalOpen] = useState(false);
@@ -326,6 +424,29 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     recognitionRef.current.start();
     setIsListening(true);
   };
+  
+  const handlePaste = async (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+              e.preventDefault();
+              const blob = items[i].getAsFile();
+              if (blob) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                      const imageData = event.target?.result as string;
+                      setPastedImages(prev => [...prev, imageData]);
+                      if (!prompt.trim()) {
+                          setPrompt('Build this UI from the image');
+                      }
+                  };
+                  reader.readAsDataURL(blob);
+              }
+          }
+      }
+  };
 
   return (
     <>
@@ -418,19 +539,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             )}
              
              {missionPrompt && (
-                <div className="relative my-4 p-4 bg-purple-500/10 border border-purple-500/30 rounded-2xl">
-                    <div className="flex justify-between items-center mb-2">
-                        <h4 className="text-xs font-orbitron text-purple-300 tracking-widest flex items-center gap-2">
+                <div className="relative my-2 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+                    <div className="flex justify-between items-center mb-1">
+                        <h4 className="text-[10px] font-orbitron text-purple-300 tracking-widest flex items-center gap-2">
                             ACTIVE MISSION
-                            {missionHistory.length > 0 && <span className="text-[10px] text-purple-400/60 font-mono">{new Date(missionHistory[0].timestamp).toLocaleTimeString()}</span>}
+                            {missionHistory.length > 0 && <span className="text-[9px] text-purple-400/60 font-mono">{new Date(missionHistory[0].timestamp).toLocaleTimeString()}</span>}
                         </h4>
                         <Tooltip text={isCopied ? "Copied!" : "Copy Mission"} position="top" align="end">
                             <button onClick={handleCopyMissionPrompt} className="text-gray-500 hover:text-white transition-colors">
-                                <CopyIcon className="w-4 h-4" />
+                                <CopyIcon className="w-3 h-3" />
                             </button>
                         </Tooltip>
                     </div>
-                    <p className="text-sm font-fira-code text-gray-300 max-h-32 overflow-y-auto custom-scrollbar leading-relaxed">
+                    <p className="text-xs font-fira-code text-gray-300 max-h-20 overflow-y-auto custom-scrollbar leading-relaxed">
                         {missionPrompt}
                     </p>
                 </div>
@@ -438,29 +559,29 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
 
 
-        <div className="flex-grow flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2 -mr-2 min-h-0 pt-4">
+        <div className="flex-grow flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 -mr-2 min-h-0 pt-2">
           {agentStatus === 'paused' && (
-              <div className="border border-purple-500/50 bg-purple-500/10 rounded-3xl p-6 animate-fade-in ring-1 ring-purple-400/30 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
+              <div className="border border-purple-500/50 bg-purple-500/10 rounded-2xl p-4 animate-fade-in ring-1 ring-purple-400/30 shadow-[0_0_20px_rgba(168,85,247,0.2)] flex-shrink-0">
                   <SectionTitle icon={<ReviewIcon className="w-5 h-5 text-purple-400" />}>
                       {pauseReason ? 'Agent Input Required' : 'Agent Paused'}
                   </SectionTitle>
-                  <p className="text-sm text-gray-300 mt-2 mb-4">{pauseReason || "Workflow halted. You can provide input to guide the next step or simply resume."}</p>
+                  <p className="text-xs text-gray-300 mt-2 mb-3">{pauseReason || "Workflow halted. You can provide input to guide the next step or simply resume."}</p>
                   <textarea
                       ref={hitlInputRef}
                       value={userInputForPause}
                       onChange={(e) => setUserInputForPause(e.target.value)}
                       placeholder="Provide input or guidance..."
-                      className="w-full bg-black/30 p-3 rounded-xl border border-white/20 focus:ring-2 focus:ring-purple-500 focus:outline-none font-fira-code text-sm resize-none"
-                      rows={3}
+                      className="w-full bg-black/30 p-2 rounded-xl border border-white/20 focus:ring-2 focus:ring-purple-500 focus:outline-none font-fira-code text-xs resize-none"
+                      rows={2}
                   />
-                  <div className="flex gap-3 mt-4">
+                  <div className="flex gap-2 mt-3">
                       <Tooltip text="Continue the workflow" position="top" align="center">
-                        <button onClick={onResume} className="flex-1 text-sm font-bold py-3 px-4 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-600 text-white hover:from-purple-500 hover:to-cyan-500 transition-all shadow-lg flex items-center justify-center gap-2">
+                        <button onClick={onResume} className="flex-1 text-xs font-bold py-2 px-3 rounded-xl bg-gradient-to-r from-purple-600 to-cyan-600 text-white hover:from-purple-500 hover:to-cyan-500 transition-all shadow-lg flex items-center justify-center gap-2">
                             Resume Mission
                         </button>
                       </Tooltip>
                       <Tooltip text="Abort and reset the agent" position="top" align="center">
-                        <button onClick={onReset} className="flex-1 text-sm font-bold py-3 px-4 rounded-xl bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30 transition-all shadow-lg flex items-center justify-center gap-2">
+                        <button onClick={onReset} className="flex-1 text-xs font-bold py-2 px-3 rounded-xl bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30 transition-all shadow-lg flex items-center justify-center gap-2">
                             Abort Mission
                         </button>
                       </Tooltip>
@@ -468,9 +589,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
           )}
           
-          <div className="flex-grow">
+          <div className="flex-grow min-h-[400px] flex flex-col">
               <SectionTitle icon={<PlanIcon className="w-5 h-5 text-cyan-400" />}>Execution Plan</SectionTitle>
-              <div className="mt-4 space-y-3">
+              <div className="mt-3 space-y-2 flex-grow overflow-y-auto custom-scrollbar">
                   {agentStatus === 'planning' ? (
                       <PlanningCard />
                   ) : tasks.length > 0 ? tasks.map((task, index) => (
@@ -547,22 +668,27 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
           )}
         </div>
         
-        <div className="mt-6 flex-shrink-0">
-            <div className="relative">
+        <div className="mt-2 flex-shrink-0">
+            <div className="relative mb-1">
                 {canScrollLeft && (
                     <button 
                         onClick={() => handleSuggestionsScroll('left')}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 w-6 h-6 bg-purple-500/50 rounded-full flex items-center justify-center text-purple-200 hover:bg-purple-500 shadow-lg shadow-purple-500/30 transition-all"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 w-3.5 h-3.5 bg-purple-500/50 rounded-full flex items-center justify-center text-purple-200 hover:bg-purple-500 shadow-lg shadow-purple-500/30 transition-all"
                     >
-                        <ChevronIcon direction="left" className="w-4 h-4" />
+                        <ChevronIcon direction="left" className="w-2 h-2" />
                     </button>
                 )}
                 <div 
                     ref={scrollContainerRef}
-                    className="mb-3 hide-scrollbar overflow-x-auto"
+                    className="hide-scrollbar overflow-x-auto"
+                    onWheel={(e) => {
+                        e.preventDefault();
+                        const container = e.currentTarget;
+                        container.scrollLeft += e.deltaY;
+                    }}
                 >
-                    <div className="flex items-center gap-2 pb-2 px-1">
-                            {codeUpgradeSuggestions.map(sugg => (
+                    <div className="flex items-center gap-1 py-0.5">
+                            {getContextAwareSuggestions(missionPrompt, agentStatus).map(sugg => (
                                 <SuggestionBubble 
                                     key={sugg.short}
                                     text={sugg.short}
@@ -574,41 +700,58 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 {canScrollRight && (
                     <button 
                         onClick={() => handleSuggestionsScroll('right')}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-6 h-6 bg-purple-500/50 rounded-full flex items-center justify-center text-purple-200 hover:bg-purple-500 shadow-lg shadow-purple-500/30 transition-all"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 w-3.5 h-3.5 bg-purple-500/50 rounded-full flex items-center justify-center text-purple-200 hover:bg-purple-500 shadow-lg shadow-purple-500/30 transition-all"
                     >
-                        <ChevronIcon direction="right" className="w-4 h-4" />
+                        <ChevronIcon direction="right" className="w-2 h-2" />
                     </button>
                 )}
             </div>
 
-          <div className="relative p-3 bg-gray-800/50 rounded-3xl border border-white/10 focus-within:border-purple-500/50 transition-colors">
-               <textarea
-                  ref={textareaRef}
+          <div className="relative p-2 bg-gray-800/50 rounded-3xl border border-white/10 focus-within:border-purple-500/50 transition-colors">
+               {pastedImages.length > 0 && (
+                   <div className="mb-2 flex flex-wrap">
+                       {pastedImages.map((img, idx) => (
+                           <ImagePreview 
+                               key={idx} 
+                               src={img} 
+                               onRemove={() => setPastedImages(prev => prev.filter((_, i) => i !== idx))} 
+                           />
+                       ))}
+                   </div>
+               )}
+               <input
+                  type="text"
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
+                  onPaste={handlePaste}
+                  onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !isAgentActive && !isPaused) {
+                          e.preventDefault();
+                          onGenerate(prompt);
+                      }
+                  }}
                   placeholder={typewriterPlaceholder + '|'}
-                  className="w-full bg-transparent focus:outline-none transition-all duration-300 font-fira-code text-sm resize-none text-gray-300 placeholder:text-gray-500 custom-scrollbar"
-                  rows={3}
+                  className="w-full bg-transparent focus:outline-none transition-all duration-300 font-fira-code text-xs text-gray-300 placeholder:text-gray-500 py-0.5"
                   disabled={isAgentActive || isPaused}
               />
-              <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-sm">
+              <div className="mt-1.5 pt-1.5 border-t border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3 text-sm">
                       <CommandBarButton tooltip="Attach files" onClick={() => fileInputRef.current?.click()} disabled={isAgentActive || isPaused}>
-                          <PaperclipIcon className="h-5 w-5" />
+                          <PaperclipIcon className="h-4 w-4" />
                       </CommandBarButton>
                       <CommandBarButton tooltip="Select element (coming soon)" onClick={() => setSelectModalOpen(true)}>
-                          <CursorIcon className="h-5 w-5" />
-                          <span>Select</span>
+                          <CursorIcon className="h-4 w-4" />
+                          <span className="text-xs">Select</span>
                       </CommandBarButton>
                       <CommandBarButton tooltip="Discuss with agent" onClick={() => setDiscussModalOpen(true)}>
-                          <ChatIcon className="h-5 w-5" />
-                          <span>Discuss</span>
+                          <ChatIcon className="h-4 w-4" />
+                          <span className="text-xs">Discuss</span>
                       </CommandBarButton>
                   </div>
                   <div className="flex items-center gap-2">
                       <Tooltip text={isListening ? 'Stop listening' : 'Use voice input'} position="top" align="end">
-                          <button onClick={handleVoiceInput} disabled={isAgentActive || isPaused} className={`p-2 rounded-full transition-colors ${isListening ? 'text-red-400 bg-red-500/20 animate-pulse' : 'text-gray-400 hover:text-cyan-300 hover:bg-cyan-500/10'}`}>
-                              <MicrophoneIcon className="h-5 w-5" />
+                          <button onClick={handleVoiceInput} disabled={isAgentActive || isPaused} className={`p-1.5 rounded-full transition-colors ${isListening ? 'text-red-400 bg-red-500/20 animate-pulse' : 'text-gray-400 hover:text-cyan-300 hover:bg-cyan-500/10'}`}>
+                              <MicrophoneIcon className="h-4 w-4" />
                           </button>
                       </Tooltip>
                       <Tooltip text="Select AI model" position="bottom" align="end">
@@ -630,12 +773,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
               </div>
             )}
             
-            <div className="mt-3 flex flex-col lg:flex-row items-center gap-3">
+            <div className="mt-1.5 flex flex-col lg:flex-row items-center gap-2">
                 <Tooltip text={isAgentActive ? "Pause the agent" : isPaused ? "Resume Mission" : "Launch Agent (Cmd/Ctrl+Enter)"} position="top" align="start">
                   {!isPaused ? (
                       <button
                         onClick={() => isAgentActive ? onStop() : onGenerate(prompt)}
-                        className={`w-full lg:w-auto flex-grow text-base font-orbitron font-bold py-3 px-6 rounded-3xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,255,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)] ${
+                        className={`w-full lg:w-auto flex-grow text-xs font-orbitron font-bold py-1.5 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(0,255,255,0.3)] hover:shadow-[0_0_25px_rgba(0,255,255,0.5)] ${
                             isAgentActive 
                             ? 'bg-yellow-600/80 text-white hover:bg-yellow-500' 
                             : 'bg-gradient-to-r from-purple-600 to-cyan-500 text-white hover:from-purple-500 hover:to-cyan-400'
@@ -644,7 +787,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         {isAgentActive ? 'Pause Agent' : 'Launch Agent'}
                       </button>
                   ) : (
-                      <div className="w-full lg:w-auto flex-grow p-3 rounded-3xl bg-gray-800 text-center text-gray-400 text-sm italic border border-white/10">
+                      <div className="w-full lg:w-auto flex-grow p-1.5 rounded-xl bg-gray-800 text-center text-gray-400 text-xs italic border border-white/10">
                           Agent is paused. Use controls above.
                       </div>
                   )}

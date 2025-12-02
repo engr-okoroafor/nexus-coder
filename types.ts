@@ -16,8 +16,13 @@ export type ViewMode = 'split' | 'code' | 'preview';
 export type AgentStatus = 'idle' | 'planning' | 'architecting' | 'coding' | 'reviewing' | 'qa' | 'refactoring' | 'fixing' | 'debugging' | 'paused' | 'final-review' | 'publishing' | 'evaluating' | 'completed' | 'error';
 
 export interface Task {
+  id?: string;
   description: string;
-  status: 'pending' | 'in-progress' | 'completed';
+  status: 'pending' | 'in-progress' | 'completed' | 'error';
+  progress?: number;
+  action?: 'read' | 'write' | 'search' | 'edit' | 'analyze' | 'build' | 'test' | 'deploy';
+  file?: string;
+  timestamp?: string;
 }
 
 export interface Problem {

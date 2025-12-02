@@ -245,13 +245,15 @@ async function performRobustSearch(userPrompt: string, appSettings: AppSettings,
 
     let searchResult = '';
     
-    // Try Google Search first - handle quota gracefully
+    // Try Google Search first - handle quota gracefully (soft fail)
     try {
         searchResult = await searchWithGoogle(userPrompt, signal);
         if (searchResult) { apiCache.set(cacheKey, searchResult); return searchResult; }
     } catch (e: any) { 
         if (e.message?.includes('429') || e.message?.includes('RESOURCE_EXHAUSTED') || e.message?.includes('quota')) {
             console.warn("Gemini Search quota exceeded. Skipping Google Search.");
+            // Return empty string instead of throwing - allows workflow to continue
+            return '';
         } else {
             console.log("Primary search failed:", e);
         }
@@ -278,6 +280,7 @@ async function performRobustSearch(userPrompt: string, appSettings: AppSettings,
         if (searchResult) { apiCache.set(cacheKey, searchResult); return searchResult; }
     } catch (e) { console.warn("DDG search failed:", e); }
 
+    // Return empty string if all searches fail - graceful degradation
     return '';
 }
 
@@ -310,16 +313,24 @@ async function callGroqApi(modelId: string, systemInstruction: string, userPromp
         // Sanitize Llama responses - strip markdown code blocks if JSON is expected
         if (isJson) {
             content = content.trim();
+            // Strip markdown code blocks (common with Llama 4 Maverick)
             if (content.startsWith('```json')) {
                 content = content.replace(/^```json\s*/, '').replace(/```\s*$/, '');
             } else if (content.startsWith('```')) {
                 content = content.replace(/^```\s*/, '').replace(/```\s*$/, '');
             }
+            // Additional cleanup for any remaining backticks
+            content = content.replace(/^`+|`+$/g, '');
         }
         
         apiCache.set(cacheKey, content);
         return content;
     } catch (error: any) {
+        // Better error handling for connection issues
+        if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('Connection')) {
+            console.warn('Groq connection error, will try fallback models');
+            throw new Error('FALLBACK_TRIGGER');
+        }
         handleApiError(error, 'Groq');
         return '';
     }
@@ -452,17 +463,19 @@ const fileSchema = {
 export const generatePlan = async (prompt: string, model: string, uploadedFiles: UploadedFile[], appSettings: AppSettings, signal?: AbortSignal): Promise<string[]> => {
   if (signal?.aborted) throw new Error('Aborted');
   const systemInstruction = `You are a Lead **Planner Agent**.
-  TASK: Create a granular, step-by-step execution plan.
+  TASK: Create a MINIMAL, high-level execution plan.
   MANDATES:
-  1. **Standard File Tree**: Plan for nested directories (src/components, src/utils, etc.).
-  2. **Parallel Batching**: Create NO MORE THAN 3-5 TASKS. Group file creations into large batches to speed up execution.
-  3. **Visuals**: Plan UI components EARLY.
-  4. **Architecture**: Detect Web vs Mobile (React Native/Expo/Flutter).
-  Respond with a JSON array of strings.`;
-  const userPrompt = `Prompt: "${prompt}"\n\n${formatUploadedFilesForPrompt(uploadedFiles)}\n\nGenerate the plan.`;
+  1. **MAXIMUM 2-3 TASKS ONLY**: Batch ALL work into 2-3 large parallel tasks.
+  2. **Task 1**: "Initialize project structure and core files"
+  3. **Task 2**: "Implement all features, UI components, and styling in parallel"
+  4. **Task 3** (optional): "Add final polish, testing, and deployment config"
+  5. **Visuals FIRST**: UI components must be in Task 2 for real-time preview.
+  6. **Architecture**: Detect Web vs Mobile (React Native/Expo/Flutter).
+  Respond with a JSON array of 2-3 strings ONLY.`;
+  const userPrompt = `Prompt: "${prompt}"\n\n${formatUploadedFilesForPrompt(uploadedFiles)}\n\nGenerate the plan with MAXIMUM 2-3 tasks.`;
   const responseText = await generateContent(model, systemInstruction, userPrompt, appSettings, { type: Type.ARRAY, items: { type: Type.STRING } }, signal);
   
-  // Harden parsing to handle various LLM response formats
+  // Harden parsing to handle various LLM response formats (especially Llama fallback)
   try {
     // Strip markdown code blocks if present (common with Llama models)
     let cleanedText = responseText.trim();
@@ -476,7 +489,8 @@ export const generatePlan = async (prompt: string, model: string, uploadedFiles:
     
     // Ensure we always return an array
     if (Array.isArray(parsed)) {
-      return parsed.filter(item => typeof item === 'string');
+      const stringItems = parsed.filter(item => typeof item === 'string');
+      return stringItems.length > 0 ? stringItems : ['Initialize project structure', 'Implement core features', 'Add styling and polish'];
     } else if (typeof parsed === 'object' && parsed !== null) {
       // If it's an object, try to extract an array property
       if (Array.isArray(parsed.plan)) return parsed.plan;
@@ -493,8 +507,8 @@ export const generatePlan = async (prompt: string, model: string, uploadedFiles:
     console.warn('generatePlan received unexpected format, using default plan');
     return ['Initialize project structure', 'Implement core features', 'Add styling and polish'];
   } catch (e) {
-    console.error('generatePlan JSON parse error:', e);
-    // Return a default plan instead of throwing
+    console.error('generatePlan JSON parse error:', e, 'Raw response:', responseText);
+    // Return a default plan instead of throwing - GUARANTEES array return
     return ['Initialize project structure', 'Implement core features', 'Add styling and polish'];
   }
 };
@@ -502,13 +516,15 @@ export const generatePlan = async (prompt: string, model: string, uploadedFiles:
 export const architectProject = async (prompt: string, model: string, appSettings: AppSettings, signal?: AbortSignal): Promise<FileNode[]> => {
     if (signal?.aborted) throw new Error('Aborted');
     const systemInstruction = `You are an **Architect Agent**.
-    TASK: Define the initial file structure.
+    TASK: Define the initial file structure WITH BASIC CONTENT.
     MANDATES:
     - **Clean Structure**: Do NOT create redundant nested folders like 'src/src'.
-    - **No Content**: Do NOT write file content (use empty strings).
+    - **Basic Content**: Create files with MINIMAL boilerplate content (not empty).
+    - **Essential Files**: Include index.html, package.json, README.md, etc.
     - **Flutter**: If Flutter requested, use 'lib', 'pubspec.yaml'.
+    - **Web Projects**: MUST include index.html with basic HTML structure.
     OUTPUT: JSON object with a "files" array.`;
-    const userPrompt = `Request: "${prompt}"\n\nGenerate initial project structure.`;
+    const userPrompt = `Request: "${prompt}"\n\nGenerate initial project structure with basic file content.`;
     const responseText = await generateContent(model, systemInstruction, userPrompt, appSettings, { type: Type.OBJECT, properties: { files: { type: Type.ARRAY, items: fileSchema } } }, signal);
     try { const res = JSON.parse(responseText); return res.files || []; } catch { return []; }
 }
@@ -537,11 +553,17 @@ export const implementTask = async (
     - **Mobile Dev**: Expert in React Native (Expo) AND Flutter (Dart).
     
     **MANDATES (CRITICAL)**:
-    1. **COMPLETE CODE**: Write EVERY line. No "// ... rest of code".
-    2. **SYNTAX**: Ensure Python indentation correct, no unclosed dicts.
-    3. **IMPORTS**: Fix missing imports.
-    4. **FILES**: Return ALL files required for task.
-    5. **Docker**: Use 'COPY backend/ .' not 'COPY backend/ ./backend' to avoid nesting.
+    1. **COMPLETE CODE**: Write EVERY line. No "// ... rest of code" or placeholders.
+    2. **PARALLEL WORK**: Generate ALL files for this task in ONE response. Work fast.
+    3. **SYNTAX**: Ensure Python indentation correct, no unclosed dicts.
+    4. **IMPORTS**: Fix missing imports.
+    5. **HTML FIRST**: If building UI, create index.html FIRST for real-time preview.
+    6. **Docker**: Use 'COPY backend/ .' not 'COPY backend/ ./backend' to avoid nesting.
+    
+    **SPEED OPTIMIZATION**: 
+    - Batch file creation - create 5-10 files at once
+    - Write production-ready code immediately
+    - No iterative refinement needed
     
     **OUTPUT**: JSON with \`files\` array. INCLUDE ALL EXISTING FILES to preserve tree.`;
 
