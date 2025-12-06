@@ -23,6 +23,7 @@ import { ShareModal } from './components/ShareModal';
 import { CopyProjectModal } from './components/CopyProjectModal';
 import { trackEvent } from './services/analyticsService';
 import { previewUpdateAgent } from './services/previewUpdateAgent';
+import { Toast } from './components/Toast';
 
 // Helper function to find index.html for preview
 const findHtmlFile = (nodes: FileNode[]): FileNode | undefined => {
@@ -76,7 +77,10 @@ const getInitialState = (): WorkflowState => {
                     ...parsed.workflowState,
                     // Reset transient states that shouldn't persist across reloads
                     agentStatus: parsed.workflowState.agentStatus === 'coding' ? 'paused' : parsed.workflowState.agentStatus,
-                    statusMessage: parsed.workflowState.agentStatus === 'coding' ? 'Session restored. Agent paused.' : parsed.workflowState.statusMessage
+                    statusMessage: parsed.workflowState.agentStatus === 'coding' ? 'Session restored. Agent paused.' : parsed.workflowState.statusMessage,
+                    // Clear Execution Plan on reload
+                    tasks: [],
+                    currentTaskIndex: 0
                 };
             }
         }
@@ -142,6 +146,9 @@ const App: React.FC = () => {
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [isBillingOpen, setBillingOpen] = useState(false);
   const [isTemplateModalOpen, setTemplateModalOpen] = useState(false);
+  
+  // Toast State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
   const [isProfileModalOpen, setProfileModalOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isGitHubImportModalOpen, setGitHubImportModalOpen] = useState(false);
@@ -1664,14 +1671,32 @@ Simply describe what you want to build, and I'll:
   };
 
   const deleteMission = (missionId: string) => {
+      const mission = workflowState.missionHistory.find(m => m.id === missionId);
+      const missionName = mission?.prompt.substring(0, 50) + (mission?.prompt.length > 50 ? '...' : '');
+      
       setState(prev => ({
           ...prev,
           missionHistory: prev.missionHistory.filter(m => m.id !== missionId)
       }));
+      
+      // Show toast notification
+      setToast({
+          message: `Mission "${missionName}" deleted successfully`,
+          type: 'success'
+      });
   };
 
   return (
      <div className="flex flex-col h-screen bg-[#0d0d0f] text-white overflow-hidden font-sans selection:bg-purple-500/30">
+        {/* Toast Notification */}
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
+        
         {isAuthModalOpen && (
           <AuthModal 
             onClose={() => setAuthModalOpen(false)} 
