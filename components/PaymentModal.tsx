@@ -57,6 +57,31 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, planName = 
     const [name, setName] = useState('');
     const [errors, setErrors] = useState<{[key: string]: string}>({});
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isCopied, setIsCopied] = useState(false);
+
+    // Bank details for copying
+    const bankDetails = `INTERNATIONAL WIRE TRANSFER DETAILS
+
+Correspondent Bank: CITIBANK, NEW YORK
+Swift Code: CITIUS33
+Sort Code: N/A
+Fedwire/ABA No: 021000089
+
+For Credit Of: GUARANTY TRUST BANK PLC, LAGOS NIGERIA
+GTBank Swift Code: GTBINGLA
+GTBank A/C (Correspondent): 36129295
+
+Beneficiary Name: OKOROAFOR, CHUKWUDIFU UZOMA
+Beneficiary A/C No: 0123088915
+
+Reference: NEX-${planName.toUpperCase()}`;
+
+    const handleCopyBankDetails = () => {
+        navigator.clipboard.writeText(bankDetails).then(() => {
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        });
+    };
 
     // Calculate Price logic
     const yearlyDiscount = 0.20; // 20%
@@ -89,21 +114,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, planName = 
     };
 
     return (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[100] p-4">
-            <div className="bg-[#0d0d12] border border-purple-500/30 rounded-3xl p-6 max-w-md w-full relative shadow-[0_0_50px_rgba(168,85,247,0.15)]">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[10000] p-4 pt-20">
+            <div className="bg-[#0d0d12] border border-purple-500/30 rounded-3xl p-5 max-w-md w-full relative shadow-[0_0_50px_rgba(168,85,247,0.15)] max-h-[calc(100vh-100px)] flex flex-col">
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-all active:scale-90 z-10">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
                 
-                <div className="text-center mb-4">
-                    <h2 className="font-orbitron text-2xl text-white">Upgrade to <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">{planName}</span></h2>
-                    <p className="text-gray-400 text-sm mt-1">Unlock autonomous power.</p>
+                <div className="text-center mb-3">
+                    <h2 className="font-orbitron text-xl text-white">Upgrade to <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">{planName}</span></h2>
+                    <p className="text-gray-400 text-xs mt-1">Unlock autonomous power.</p>
                 </div>
 
                 {/* Billing Cycle Switcher */}
-                <div className="flex bg-black/40 p-1 rounded-xl mb-6 border border-white/10 relative">
+                <div className="flex bg-black/40 p-1 rounded-xl mb-4 border border-white/10 relative">
                      <div 
                         className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-gradient-to-r from-purple-600/40 to-cyan-600/40 rounded-lg transition-all duration-300 ${billingCycle === 'monthly' ? 'left-1' : 'left-[calc(50%+4px)]'}`}
                     ></div>
@@ -121,12 +146,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, planName = 
                     </button>
                 </div>
 
-                <div className="text-center mb-6 p-4 bg-gradient-to-br from-purple-900/20 to-cyan-900/20 rounded-2xl border border-white/10">
-                    <div className="text-3xl font-bold text-white">{displayPrice}<span className="text-sm font-normal text-gray-400">/mo</span></div>
-                    <div className="text-xs text-gray-400 mt-1">Billed {billingCycle === 'yearly' ? 'yearly' : 'monthly'} as <span className="text-white font-semibold">{totalBilled}</span></div>
+                <div className="text-center mb-4 p-3 bg-gradient-to-br from-purple-900/20 to-cyan-900/20 rounded-2xl border border-white/10">
+                    <div className="text-2xl font-bold text-white">{displayPrice}<span className="text-xs font-normal text-gray-400">/mo</span></div>
+                    <div className="text-[10px] text-gray-400 mt-1">Billed {billingCycle === 'yearly' ? 'yearly' : 'monthly'} as <span className="text-white font-semibold">{totalBilled}</span></div>
                 </div>
 
-                <div className="border-b border-white/10 mb-6">
+                <div className="border-b border-white/10 mb-4">
                     <div className="flex gap-4">
                         <PaymentTabButton active={activeTab === 'card'} onClick={() => setActiveTab('card')}>
                             <CreditCardIcon className="w-4 h-4"/> Card
@@ -181,23 +206,65 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, planName = 
                         </div>
                     )}
                     {activeTab === 'bank' && (
-                        <div className="bg-black/30 p-5 rounded-2xl border border-white/10 text-sm text-gray-300 space-y-3">
-                            <p className="text-white font-semibold mb-2">Transfer Details:</p>
-                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                <span>Bank Name:</span>
-                                <span className="text-white">Galactic Reserve</span>
+                        <div className="bg-black/30 p-3 rounded-2xl border border-white/10 relative">
+                            <div className="flex justify-between items-center mb-2">
+                                <p className="text-white font-semibold text-[11px]">Wire Transfer Details</p>
+                                <button 
+                                    onClick={handleCopyBankDetails}
+                                    className="flex items-center gap-1 px-2 py-1 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 rounded-lg text-[10px] font-bold transition-colors"
+                                >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    {isCopied ? 'Copied!' : 'Copy All'}
+                                </button>
                             </div>
-                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                <span>Account No:</span>
-                                <span className="text-white font-mono">8829-1029-3847</span>
-                            </div>
-                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                <span>Routing:</span>
-                                <span className="text-white font-mono">021000021</span>
-                            </div>
-                            <div className="flex justify-between pt-1">
-                                <span>Reference:</span>
-                                <span className="text-cyan-400 font-mono">NEX-{planName.toUpperCase()}</span>
+                            
+                            <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-gray-300">
+                                <div className="col-span-2 border-b border-white/5 pb-1 mb-1">
+                                    <span className="text-gray-400">Correspondent Bank:</span>
+                                    <p className="text-white font-mono text-[8px]">CITIBANK, NEW YORK</p>
+                                </div>
+                                
+                                <div>
+                                    <span className="text-gray-400">Swift:</span>
+                                    <p className="text-white font-mono text-[8px]">CITIUS33</p>
+                                </div>
+                                
+                                <div>
+                                    <span className="text-gray-400">Fedwire/ABA:</span>
+                                    <p className="text-white font-mono text-[8px]">021000089</p>
+                                </div>
+                                
+                                <div className="col-span-2 border-t border-white/5 pt-1 mt-1">
+                                    <span className="text-gray-400">For Credit Of:</span>
+                                    <p className="text-white font-mono text-[8px]">GUARANTY TRUST BANK PLC, LAGOS</p>
+                                </div>
+                                
+                                <div>
+                                    <span className="text-gray-400">GTBank Swift:</span>
+                                    <p className="text-white font-mono text-[8px]">GTBINGLA</p>
+                                </div>
+                                
+                                <div>
+                                    <span className="text-gray-400">GTBank A/C:</span>
+                                    <p className="text-white font-mono text-[8px]">36129295</p>
+                                </div>
+                                
+                                <div className="col-span-2 border-t border-white/5 pt-1 mt-1">
+                                    <span className="text-gray-400">Beneficiary:</span>
+                                    <p className="text-white font-mono text-[8px]">OKOROAFOR, CHUKWUDIFU UZOMA</p>
+                                </div>
+                                
+                                <div>
+                                    <span className="text-gray-400">Account No:</span>
+                                    <p className="text-white font-mono text-[8px]">0123088915</p>
+                                </div>
+                                
+                                <div>
+                                    <span className="text-gray-400">Reference:</span>
+                                    <p className="text-cyan-400 font-mono text-[8px]">NEX-{planName.toUpperCase()}</p>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -206,18 +273,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ onClose, planName = 
                 <button 
                     onClick={handlePay}
                     disabled={isProcessing}
-                    className="w-full mt-8 text-base font-orbitron font-bold py-4 px-6 rounded-2xl bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                    className="w-full mt-4 text-sm font-orbitron font-bold py-3 px-6 rounded-2xl bg-gradient-to-r from-purple-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
                 >
                     {isProcessing ? (
                         <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                             Processing...
                         </>
                     ) : (
                         `Pay ${totalBilled}`
                     )}
                 </button>
-                <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-500">
+                <div className="mt-3 flex items-center justify-center gap-2 text-[10px] text-gray-500">
                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                      Secure 256-bit SSL Encrypted Payment
                 </div>

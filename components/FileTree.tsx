@@ -231,7 +231,7 @@ const FileTreeItem: React.FC<FileTreeItemProps> = ({
                             className="bg-black/50 border border-cyan-400 text-white text-base font-bold w-full p-1 focus:ring-1 focus:ring-cyan-500 rounded h-8"
                         />
                     ) : (
-                        <span className={`truncate text-base font-bold tracking-wide ${node.isCut ? 'italic text-gray-400' : ''}`}>{node.name}</span>
+                        <span className={`truncate text-sm font-medium tracking-normal ${node.isCut ? 'italic text-gray-400' : ''}`}>{node.name}</span>
                     )}
                 </div>
             </div>

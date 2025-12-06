@@ -10,6 +10,7 @@ import { ALL_TEMPLATES, LEGACY_TEMPLATES } from './templates';
 import { Billing } from './components/Billing';
 import { fileToBase64, addNodeToTree, removeNodeFromTree, updateNodeInTree, moveNodeInTree, generateId, downloadProjectAsZip, duplicateNode, findFileByPath } from './utils';
 import { StatusBar } from './components/StatusBar';
+import { Terminal } from './components/Terminal';
 import { ProjectTemplateModal } from './components/ProjectTemplateModal';
 import { LandingPage } from './components/LandingPage';
 import { ProfileModal } from './components/ProfileModal';
@@ -21,6 +22,7 @@ import { AuthModal } from './components/AuthModal';
 import { ShareModal } from './components/ShareModal';
 import { CopyProjectModal } from './components/CopyProjectModal';
 import { trackEvent } from './services/analyticsService';
+import { previewUpdateAgent } from './services/previewUpdateAgent';
 
 // Helper function to find index.html for preview
 const findHtmlFile = (nodes: FileNode[]): FileNode | undefined => {
@@ -109,8 +111,32 @@ const getInitialState = (): WorkflowState => {
 const App: React.FC = () => {
   const [workflowState, setWorkflowState] = useState<WorkflowState>(getInitialState);
   
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User>({ name: 'Demo User', email: 'demo@user.com', bio: 'AI enthusiast & developer.' });
+  // Persist authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      const savedAuth = localStorage.getItem('nexus-auth-state');
+      return savedAuth ? JSON.parse(savedAuth).isAuthenticated : false;
+    } catch {
+      return false;
+    }
+  });
+  const [user, setUser] = useState<User>(() => {
+    try {
+      const savedAuth = localStorage.getItem('nexus-auth-state');
+      return savedAuth ? JSON.parse(savedAuth).user : { name: 'Demo User', email: 'demo@user.com', bio: 'AI enthusiast & developer.' };
+    } catch {
+      return { name: 'Demo User', email: 'demo@user.com', bio: 'AI enthusiast & developer.' };
+    }
+  });
+  
+  // Save auth state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('nexus-auth-state', JSON.stringify({ isAuthenticated, user }));
+    } catch (error) {
+      console.error('Failed to save auth state:', error);
+    }
+  }, [isAuthenticated, user]);
   
   // Modal States
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
@@ -137,6 +163,18 @@ const App: React.FC = () => {
   
   const [viewMode, setViewMode] = useState<ViewMode>('split');
   const [generatedMarkup, setGeneratedMarkup] = useState<string>('');
+  
+  // Initialize preview with default HTML on mount
+  useEffect(() => {
+    if (projectFiles.length > 0 && !generatedMarkup) {
+      console.log('🚀 Initializing preview on mount...');
+      const bundle = previewUpdateAgent.processFiles(projectFiles);
+      if (bundle.html) {
+        console.log('✅ Initial preview set with', bundle.html.length, 'characters');
+        setGeneratedMarkup(bundle.html);
+      }
+    }
+  }, []); // Run only once on mount
   
   const [installPromptEvent, setInstallPromptEvent] = useState<Event | null>(null);
   const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
@@ -178,8 +216,66 @@ const App: React.FC = () => {
   }, []);
 
   // --- UI State ---
-  const [controlPanelWidth, setControlPanelWidth] = useState(window.innerWidth / 3);
+  const [controlPanelWidth, setControlPanelWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus-control-panel-width');
+      return saved ? parseInt(saved) : window.innerWidth / 3;
+    } catch {
+      return window.innerWidth / 3;
+    }
+  });
   const isControlResizing = useRef(false);
+  const [isResizingControl, setIsResizingControl] = useState(false);
+  const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus-terminal-collapsed');
+      return saved ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+  const [terminalHeight, setTerminalHeight] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus-terminal-height');
+      return saved ? parseInt(saved) : 200;
+    } catch {
+      return 200;
+    }
+  });
+  const isTerminalResizing = useRef(false);
+  const [isResizingTerminal, setIsResizingTerminal] = useState(false);
+  
+  // Sidebar width for Terminal offset - synced from CodeView
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus-sidebar-width');
+      return saved ? parseInt(saved) : 256;
+    } catch {
+      return 256;
+    }
+  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Sync sidebar state from localStorage periodically
+  useEffect(() => {
+    const syncSidebarState = () => {
+      try {
+        const savedWidth = localStorage.getItem('nexus-sidebar-width');
+        if (savedWidth) {
+          const width = parseInt(savedWidth);
+          if (width !== sidebarWidth) {
+            setSidebarWidth(width);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to sync sidebar width:', error);
+      }
+    };
+    
+    const interval = setInterval(syncSidebarState, 500);
+    return () => clearInterval(interval);
+  }, [sidebarWidth]);
+  
   const initialLaunchInfoRef = useRef({ prompt: '', model: AI_MODELS[0] });
   
   const { 
@@ -268,29 +364,118 @@ const App: React.FC = () => {
   const handleControlMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     isControlResizing.current = true;
+    setIsResizingControl(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const handleControlTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    isControlResizing.current = true;
+    setIsResizingControl(true);
+    document.body.style.userSelect = 'none';
   };
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (isControlResizing.current) {
         requestAnimationFrame(() => {
-            const newWidth = Math.max(320, Math.min(e.clientX, window.innerWidth * 0.6));
-            setControlPanelWidth(newWidth);
+          const newWidth = Math.max(280, Math.min(e.clientX, window.innerWidth * 0.5));
+          setControlPanelWidth(newWidth);
         });
     }
   }, []);
 
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (isControlResizing.current) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (touch) {
+            requestAnimationFrame(() => {
+              const newWidth = Math.max(280, Math.min(touch.clientX, window.innerWidth * 0.5));
+              setControlPanelWidth(newWidth);
+            });
+        }
+    }
+  }, []);
+
   const handleMouseUp = useCallback(() => {
-    isControlResizing.current = false;
+    // Always cleanup, regardless of which resizer was active
+    if (isControlResizing.current) {
+      try {
+        localStorage.setItem('nexus-control-panel-width', controlPanelWidth.toString());
+      } catch (error) {
+        console.warn('Failed to save panel width:', error);
+      }
+      isControlResizing.current = false;
+      setIsResizingControl(false);
+    }
+    
+    if (isTerminalResizing.current) {
+      try {
+        localStorage.setItem('nexus-terminal-height', terminalHeight.toString());
+      } catch (error) {
+        console.warn('Failed to save terminal height:', error);
+      }
+      isTerminalResizing.current = false;
+      setIsResizingTerminal(false);
+    }
+    
+    // Always reset cursor and selection
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, [controlPanelWidth, terminalHeight]);
+
+  const handleTerminalMouseMove = useCallback((e: MouseEvent) => {
+    if (isTerminalResizing.current) {
+        requestAnimationFrame(() => {
+          const windowHeight = window.innerHeight;
+          const newHeight = Math.max(100, Math.min(windowHeight - e.clientY - 72, windowHeight * 0.6));
+          setTerminalHeight(newHeight);
+        });
+    }
+  }, []);
+
+  const handleTerminalTouchMove = useCallback((e: TouchEvent) => {
+    if (isTerminalResizing.current) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (touch) {
+            requestAnimationFrame(() => {
+              const windowHeight = window.innerHeight;
+              const newHeight = Math.max(100, Math.min(windowHeight - touch.clientY - 72, windowHeight * 0.6));
+              setTerminalHeight(newHeight);
+            });
+        }
+    }
   }, []);
 
   useEffect(() => {
+    // Unified event listeners for all resizers
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleTerminalMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchmove', handleTerminalTouchMove, { passive: false });
+    window.addEventListener('touchend', handleMouseUp);
+    
+    // Ensure cleanup on mouse leave window
+    const handleMouseLeave = () => {
+      if (isControlResizing.current || isTerminalResizing.current) {
+        handleMouseUp();
+      }
+    };
+    document.addEventListener('mouseleave', handleMouseLeave);
+    
     return () => {
         window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mousemove', handleTerminalMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchmove', handleTerminalTouchMove);
+        window.removeEventListener('touchend', handleMouseUp);
+        document.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [handleMouseMove, handleMouseUp]);
+  }, [handleMouseMove, handleMouseUp, handleTouchMove, handleTerminalMouseMove, handleTerminalTouchMove]);
   
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -348,15 +533,70 @@ const App: React.FC = () => {
     setTokenUsage(prev => ({ ...prev, limit: MODEL_LIMITS[selectedModel]?.rpm || 15 }));
   }, [selectedModel]);
   
+  // Preview Update Agent - Real-time monitoring of all files
   useEffect(() => {
-    const projectHtmlFile = findHtmlFile(projectFiles);
-    if (projectHtmlFile) {
-        if (!generatedMarkup || generatedMarkup !== projectHtmlFile.content) {
-            setGeneratedMarkup(projectHtmlFile.content || '');
-        }
-    } else if (projectFiles.length === 0 && agentStatus !== 'idle' && agentStatus !== 'completed') {
-        // Keep construction mode if files are empty during a build, unless complete
-        // Intentionally empty logic here, handled by Preview overlay
+    console.log('🔍 Preview Update Agent triggered - Files:', projectFiles.length, 'Status:', agentStatus);
+    
+    if (projectFiles.length === 0) {
+      console.log('⚠️ No project files to process');
+      if (agentStatus !== 'idle' && agentStatus !== 'completed') {
+        // Keep construction mode if files are empty during a build
+      }
+      return;
+    }
+
+    // Use Preview Update Agent to process all files
+    console.log('⚙️ Processing files with Preview Update Agent...');
+    const bundle = previewUpdateAgent.processFiles(projectFiles);
+    console.log('📦 Bundle created:', { 
+      hasHtml: !!bundle.html, 
+      htmlLength: bundle.html?.length || 0,
+      cssFiles: bundle.css.length,
+      jsFiles: bundle.js.length 
+    });
+    
+    // Always update if we have HTML content (not just when hasChanges is true)
+    if (bundle.html && bundle.html.trim().length > 0) {
+      console.log('✅ Updating preview - HTML length:', bundle.html.length);
+      setGeneratedMarkup(bundle.html);
+      console.log('🔄 Preview updated with new content');
+      
+      // Get file statistics
+      const stats = previewUpdateAgent.getFileStats(projectFiles);
+      
+      // Always log updates (not just during coding)
+      console.log(`🎨 Preview Update Agent: Processing ${stats.totalFiles} files`);
+      
+      if (stats.htmlCount > 0) {
+        console.log(`📄 HTML files: ${stats.htmlCount}`);
+      }
+      
+      if (bundle.css.length > 0) {
+        console.log(`💅 CSS files injected: ${bundle.css.join(', ')}`);
+      }
+      
+      if (bundle.js.length > 0) {
+        console.log(`⚡ JS files injected: ${bundle.js.join(', ')}`);
+      }
+      
+      // Count UI components
+      const componentMatches = bundle.html.match(/<(button|div|nav|header|footer|form|input|select|table|ul|ol|section|article|aside|card|modal|menu)[^>]*>/gi);
+      if (componentMatches && componentMatches.length > 0) {
+        console.log(`🎨 ${componentMatches.length} UI elements rendered in preview`);
+      }
+      
+      // Detect styling
+      const hasStyles = bundle.html.includes('<style') || bundle.css.length > 0;
+      const hasTailwind = bundle.html.match(/class="[^"]*(?:bg-|text-|flex|grid|p-|m-|rounded)/);
+      if (hasStyles || hasTailwind) {
+        const styleTypes = [];
+        if (bundle.css.length > 0) styleTypes.push(`${bundle.css.length} CSS file(s)`);
+        if (hasTailwind) styleTypes.push('Tailwind CSS');
+        if (bundle.html.includes('<style')) styleTypes.push('inline styles');
+        console.log(`✨ Styling applied: ${styleTypes.join(', ')}`);
+      }
+    } else {
+      console.warn('⚠️ Bundle has no HTML content or is empty');
     }
   }, [projectFiles, agentStatus]);
   
@@ -1160,16 +1400,87 @@ Simply describe what you want to build, and I'll:
         if (htmlFile) {
             console.log('📄 HTML file content length:', htmlFile.content?.length || 0);
             if (htmlFile.content && htmlFile.content.trim().length > 0) {
-                // Update preview IMMEDIATELY - don't wait for task completion
-                console.log('✅ Updating preview with HTML content');
-                setGeneratedMarkup(htmlFile.content);
-                setViewMode('split'); // Auto-switch to split view for live preview
+                // Use Preview Update Agent to process files with CSS/JS injection
+                console.log('✅ Processing files with Preview Update Agent - REAL-TIME UPDATE');
+                const bundle = previewUpdateAgent.processFiles(result.files);
+                
+                if (bundle.html) {
+                    setGeneratedMarkup(bundle.html);
+                    setViewMode('split'); // Auto-switch to split view for live preview
+                    console.log(`💅 Injected ${bundle.css.length} CSS file(s) and ${bundle.js.length} JS file(s)`);
+                }
                 
                 // Force immediate state update for real-time feel
                 setState(prev => ({
                     ...prev,
                     projectFiles: result.files
                 }));
+                
+                // Enhanced component detection with more UI elements
+                const componentTypes = [
+                    'button', 'card', 'modal', 'menu', 'navbar', 'nav', 'form', 'input', 
+                    'table', 'header', 'footer', 'sidebar', 'hamburger', 'dropdown', 
+                    'accordion', 'tab', 'carousel', 'slider', 'tooltip', 'badge', 
+                    'alert', 'toast', 'dialog', 'drawer', 'popover', 'select', 
+                    'checkbox', 'radio', 'switch', 'textarea', 'progress', 'spinner',
+                    'avatar', 'chip', 'divider', 'list', 'grid', 'flex'
+                ];
+                const foundComponents = componentTypes.filter(comp => 
+                    htmlFile.content?.toLowerCase().includes(comp)
+                );
+                if (foundComponents.length > 0) {
+                    const displayComponents = foundComponents.slice(0, 5).join(', ');
+                    const moreCount = foundComponents.length > 5 ? ` +${foundComponents.length - 5} more` : '';
+                    addLog(`🎨 Real-time preview: ${displayComponents}${moreCount} rendered`);
+                } else {
+                    addLog('🎨 Real-time preview: UI structure updated');
+                }
+                
+                // Check for styling updates with more detail
+                const hasInlineStyles = htmlFile.content?.includes('<style');
+                const hasClasses = htmlFile.content?.includes('class=');
+                const hasTailwind = htmlFile.content?.match(/class="[^"]*(?:bg-|text-|flex|grid|p-|m-|rounded)/);
+                
+                // Find CSS files in project
+                const findCssFiles = (nodes: FileNode[]): FileNode[] => {
+                    const cssFiles: FileNode[] = [];
+                    const traverse = (items: FileNode[]) => {
+                        items.forEach(item => {
+                            if (item.type === 'file' && item.name.endsWith('.css') && item.content) {
+                                cssFiles.push(item);
+                            }
+                            if (item.children) traverse(item.children);
+                        });
+                    };
+                    traverse(nodes);
+                    return cssFiles;
+                };
+                const cssFiles = findCssFiles(result.files);
+                
+                if (hasInlineStyles || hasClasses || cssFiles.length > 0) {
+                    const styleTypes = [];
+                    if (hasTailwind) styleTypes.push('Tailwind CSS');
+                    if (hasInlineStyles) styleTypes.push('inline CSS');
+                    if (cssFiles.length > 0) styleTypes.push(`${cssFiles.length} CSS file(s)`);
+                    if (hasClasses && !hasTailwind) styleTypes.push('CSS classes');
+                    
+                    addLog(`✨ Styling applied: ${styleTypes.join(', ')}`);
+                    if (cssFiles.length > 0) {
+                        addLog(`📄 CSS files: ${cssFiles.map(f => f.name).join(', ')}`);
+                    }
+                }
+                
+                // Check for interactivity with more detail
+                const hasScripts = htmlFile.content?.includes('<script');
+                const hasEventHandlers = htmlFile.content?.match(/on(click|change|submit|load|input|focus|blur)/i);
+                if (hasScripts || hasEventHandlers) {
+                    addLog('⚡ Interactive elements and event handlers added');
+                }
+                
+                // Check for responsive design
+                if (htmlFile.content?.includes('viewport') || htmlFile.content?.includes('media')) {
+                    addLog('📱 Responsive design elements detected');
+                }
             } else {
                 console.warn('⚠️ HTML file found but content is empty');
             }
@@ -1184,6 +1495,7 @@ Simply describe what you want to build, and I'll:
                 console.log('✅ Found HTML file in tree:', anyHtml.name);
                 setGeneratedMarkup(anyHtml.content);
                 setViewMode('split');
+                addLog('🎨 Preview updated with latest UI components');
             }
         }
         
@@ -1406,17 +1718,30 @@ Simply describe what you want to build, and I'll:
                 onVersionHistory={() => setVersionHistoryModalOpen(true)}
                 onOpenProfile={() => setProfileModalOpen(true)}
                 onOpenSettings={() => setSettingsModalOpen(true)}
-                onLogout={() => setIsAuthenticated(false)}
+                onLogout={() => {
+                  saveSessionToStorage();
+                  try {
+                    localStorage.removeItem('nexus-auth-state');
+                  } catch (error) {
+                    console.error('Failed to clear auth state:', error);
+                  }
+                  setIsAuthenticated(false);
+                  setUser({ name: 'Demo User', email: 'demo@user.com', bio: 'AI enthusiast & developer.' });
+                  setViewMode('preview');
+                  addLog('User logged out successfully.');
+                }}
                 onShare={() => setShareModalOpen(true)}
                 isRepoInitialized={isRepoInitialized}
                 onInitRepo={handleInitRepo}
                 onCommit={handleCommit}
             />
             
+            {/* Main content area with ControlPanel extending to bottom */}
             <div className="flex flex-grow overflow-hidden relative">
+                {/* Mission Control Panel - Extends to bottom of screen */}
                 <div 
-                    className="flex-shrink-0 h-full transition-all duration-100 ease-out overflow-hidden" 
-                    style={{ width: controlPanelWidth }}
+                    className="flex-shrink-0 transition-all duration-100 ease-out overflow-hidden" 
+                    style={{ width: controlPanelWidth, height: 'calc(100vh - 72px)' }}
                 >
                     <ControlPanel 
                         tasks={tasks}
@@ -1446,56 +1771,152 @@ Simply describe what you want to build, and I'll:
                         missionHistory={missionHistory}
                         onRestoreMission={restoreMission}
                         onLoadLegacyProject={handleLoadLegacyProject}
+                        agentLogs={agentLogs}
                     />
                 </div>
                 
+                {/* Resizer - Visible and extends to StatusBar */}
                 <div 
                     onMouseDown={handleControlMouseDown}
-                    className="w-1.5 h-full cursor-col-resize bg-gray-800 hover:bg-cyan-500/50 transition-colors z-10 flex items-center justify-center"
+                    onTouchStart={handleControlTouchStart}
+                    className={`group w-4 md:w-3 lg:w-2 cursor-col-resize transition-all duration-150 z-30 flex items-center justify-center relative touch-none ${
+                      isResizingControl 
+                        ? 'bg-cyan-400/80 shadow-[0_0_20px_rgba(34,211,238,0.8)]' 
+                        : 'bg-cyan-500/30 hover:bg-cyan-500/50 md:hover:w-3.5 lg:hover:w-2.5 active:bg-cyan-400'
+                    }`}
+                    style={{ height: 'calc(100vh - 72px)' }}
                 >
-                    <div className="h-8 w-0.5 bg-gray-600 rounded-full" />
+                    <div className={`h-20 w-1 rounded-full transition-all duration-200 ${
+                      isResizingControl 
+                        ? 'bg-cyan-300 shadow-[0_0_15px_rgba(34,211,238,1)] scale-110' 
+                        : 'bg-cyan-400 group-hover:bg-cyan-300 group-active:bg-cyan-200 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.8)]'
+                    }`} />
                 </div>
                 
-                <div className="flex-grow h-full min-w-0 bg-[#0d0d0f]">
-                     <CodeView 
-                        files={projectFiles}
-                        openFiles={openFiles}
-                        activeFile={activeFile}
-                        selectedNodeIds={selectedNodeIds}
-                        clipboardNodeId={clipboard.node?.id || null}
-                        onNodeClick={handleNodeClick}
-                        onFileContentChange={handleFileContentChange}
-                        onFileContentUpdate={handleFileContentUpdate}
-                        onCloseFile={handleCloseFile}
-                        onActivateFile={(file) => setState(prev => ({ ...prev, activeFileId: file.id }))}
-                        agentStatus={agentStatus}
-                        viewMode={viewMode}
-                        setViewMode={setViewMode}
-                        generatedMarkup={generatedMarkup}
-                        agentLogs={agentLogs}
-                        review={finalReview}
-                        searchQuery={searchQuery}
-                        setSearchQuery={setSearchQuery}
-                        searchResults={searchResults}
-                        onSearchResultClick={handleSearchResultClick}
-                        fileFilter={fileFilter}
-                        onCreateNode={handleCreateNode}
-                        onDeleteNode={handleDeleteNode}
-                        onRenameNode={handleRenameNode}
-                        onMoveNode={handleMoveNode}
-                        onSetEditingNode={(id) => setState(prev => ({ ...prev, projectFiles: updateNodeInTree(prev.projectFiles, id, { isEditing: true }) }))}
-                        onCopyPath={handleCopyPath}
-                        onCutNode={handleCutNode}
-                        onCopyNode={handleCopyNode}
-                        onPasteNode={handlePasteNode}
-                        canPaste={!!clipboard.node}
-                        onUndo={handleUndo}
-                        onRedo={handleRedo}
-                        missionPrompt={missionPrompt}
-                     />
+                {/* Sidebar - Positioned to extend from top to StatusBar */}
+                <div 
+                    className={`${isSidebarCollapsed ? 'w-0' : ''} flex-shrink-0 bg-[#0a0a0c] transition-all duration-300 absolute left-0 z-20`}
+                    style={{ 
+                        width: isSidebarCollapsed ? 0 : `${sidebarWidth + 8}px`,
+                        top: 0,
+                        bottom: '24px',
+                        marginLeft: `${controlPanelWidth}px`
+                    }}
+                >
+                    {/* Sidebar content will be rendered here */}
+                </div>
+
+                {/* CodeView + Terminal container - Constrained to CodeView width */}
+                <div className="flex-grow flex flex-col min-w-0 bg-[#0d0d0f] relative">
+                    {/* CodeView area */}
+                    <div className="flex-grow overflow-hidden" style={{ height: isTerminalCollapsed ? 'calc(100vh - 72px)' : `calc(100vh - 72px - ${terminalHeight}px)` }}>
+                        <CodeView 
+                            files={projectFiles}
+                            openFiles={openFiles}
+                            activeFile={activeFile}
+                            selectedNodeIds={selectedNodeIds}
+                            clipboardNodeId={clipboard.node?.id || null}
+                            onNodeClick={handleNodeClick}
+                            onFileContentChange={handleFileContentChange}
+                            onFileContentUpdate={handleFileContentUpdate}
+                            onCloseFile={handleCloseFile}
+                            onActivateFile={(file) => setState(prev => ({ ...prev, activeFileId: file.id }))}
+                            agentStatus={agentStatus}
+                            viewMode={viewMode}
+                            setViewMode={setViewMode}
+                            generatedMarkup={generatedMarkup}
+                            agentLogs={agentLogs}
+                            review={finalReview}
+                            searchQuery={searchQuery}
+                            setSearchQuery={setSearchQuery}
+                            searchResults={searchResults}
+                            onSearchResultClick={handleSearchResultClick}
+                            fileFilter={fileFilter}
+                            onCreateNode={handleCreateNode}
+                            onDeleteNode={handleDeleteNode}
+                            onRenameNode={handleRenameNode}
+                            onMoveNode={handleMoveNode}
+                            onSetEditingNode={(id) => setState(prev => ({ ...prev, projectFiles: updateNodeInTree(prev.projectFiles, id, { isEditing: true }) }))}
+                            onCopyPath={handleCopyPath}
+                            onCutNode={handleCutNode}
+                            onCopyNode={handleCopyNode}
+                            onPasteNode={handlePasteNode}
+                            canPaste={!!clipboard.node}
+                            onUndo={handleUndo}
+                            onRedo={handleRedo}
+                            missionPrompt={missionPrompt}
+                            terminalHeight={terminalHeight}
+                            isTerminalCollapsed={isTerminalCollapsed}
+                        />
+                    </div>
+                    
+                    {/* Terminal Section - Aligned with CodeView */}
+                    <div 
+                        className="flex-shrink-0 flex flex-col overflow-visible transition-all duration-300"
+                        style={{ 
+                            marginLeft: isSidebarCollapsed ? 0 : `${sidebarWidth + 8}px`,
+                            width: isSidebarCollapsed ? '100%' : `calc(100% - ${sidebarWidth + 8}px)`
+                        }}
+                    >
+                        {/* Terminal Resizer - Subtle and refined */}
+                        {!isTerminalCollapsed && (
+                          <div 
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              isTerminalResizing.current = true;
+                              setIsResizingTerminal(true);
+                              document.body.style.cursor = 'row-resize';
+                              document.body.style.userSelect = 'none';
+                            }}
+                            onTouchStart={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              isTerminalResizing.current = true;
+                              setIsResizingTerminal(true);
+                              document.body.style.userSelect = 'none';
+                            }}
+                            className={`group w-full h-4 md:h-3 lg:h-2 cursor-row-resize flex-shrink-0 transition-all duration-200 flex items-center justify-center relative touch-none bg-black/40 hover:bg-purple-500/50 ${
+                              isResizingTerminal 
+                                ? 'bg-purple-500/60' 
+                                : ''
+                            }`}
+                          >
+                            <div className={`w-16 h-1 rounded-full transition-all duration-200 bg-purple-500/30 group-hover:bg-purple-400 ${
+                              isResizingTerminal 
+                                ? 'bg-purple-400' 
+                                : ''
+                            }`} />
+                          </div>
+                        )}
+                        
+                        {/* Terminal at bottom */}
+                        <div className="flex-shrink-0 transition-all duration-300 border-t border-purple-500/20 overflow-visible" style={{ height: isTerminalCollapsed ? '40px' : `${terminalHeight}px` }}>
+                            <Terminal 
+                                logs={agentLogs}
+                                isCollapsed={isTerminalCollapsed}
+                                onToggleCollapse={() => {
+                                  const newCollapsed = !isTerminalCollapsed;
+                                  setIsTerminalCollapsed(newCollapsed);
+                                  try {
+                                    localStorage.setItem('nexus-terminal-collapsed', JSON.stringify(newCollapsed));
+                                  } catch (error) {
+                                    console.warn('Failed to save terminal state:', error);
+                                  }
+                                }}
+                                sidebarWidth={sidebarWidth}
+                                isSidebarCollapsed={isSidebarCollapsed}
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
-            <StatusBar agentStatus={agentStatus} message={statusMessage} />
+            
+            {/* Status Bar at bottom - Full width */}
+            <StatusBar 
+                agentStatus={agentStatus} 
+                message={statusMessage}
+            />
             </>
         )}
      </div>

@@ -8,9 +8,10 @@ interface CustomSelectProps {
     onChange: (value: string) => void;
     disabled?: boolean;
     direction?: 'top' | 'bottom' | 'auto';
+    onOpenChange?: (isOpen: boolean) => void;
 }
 
-export const CustomSelect: React.FC<CustomSelectProps> = ({ options, value, onChange, disabled, direction = 'auto' }) => {
+export const CustomSelect: React.FC<CustomSelectProps> = ({ options, value, onChange, disabled, direction = 'auto', onOpenChange }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [position, setPosition] = useState<'top' | 'bottom'>('top');
     const [isAnimating, setIsAnimating] = useState(false);
@@ -40,22 +41,28 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ options, value, onCh
                 }
             }
         }
-        setIsOpen(prev => !prev);
-    }, [direction]);
+        setIsOpen(prev => {
+            const newValue = !prev;
+            onOpenChange?.(newValue);
+            return newValue;
+        });
+    }, [direction, onOpenChange]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
+                onOpenChange?.(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [onOpenChange]);
 
     const handleSelect = (option: string) => {
         onChange(option);
         setIsOpen(false);
+        onOpenChange?.(false);
     };
 
     return (
@@ -64,9 +71,9 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({ options, value, onCh
                 type="button"
                 onClick={handleToggle}
                 disabled={disabled}
-                className={`appearance-none cursor-pointer bg-purple-500/20 border border-purple-500/50 text-purple-200 rounded-3xl text-xs px-3 py-2.5 focus:ring-2 focus:ring-purple-400 focus:outline-none font-normal transition-all duration-300 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] w-full flex items-center justify-between ${isAnimating ? 'animate-flash' : ''}`}
+                className={`appearance-none cursor-pointer bg-purple-500/20 border border-purple-500/50 text-purple-200 rounded-3xl text-xs px-2.5 py-1.5 focus:ring-2 focus:ring-purple-400 focus:outline-none font-normal transition-all duration-300 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)] w-full flex items-center justify-between min-w-[140px] ${isAnimating ? 'animate-flash' : ''}`}
             >
-                <span className="truncate max-w-[120px]">{value}</span>
+                <span className="truncate flex-1 text-left">{value}</span>
                 <ChevronIcon direction="down" isOpen={isOpen} className="w-4 h-4 text-purple-300 ml-2 flex-shrink-0" />
             </button>
             {isOpen && (

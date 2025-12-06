@@ -1065,14 +1065,21 @@ const PYTHON_TEMPLATE: FileNode[] = [
 ];
 
 export const ALL_TEMPLATES = [
-    { name: 'Futurist Starter', files: FUTURIST_STARTER_TEMPLATE },
-    { name: 'React (Finance)', files: REACT_TEMPLATE },
-    { name: 'React Native (Mobile)', files: REACT_NATIVE_TEMPLATE },
-    { name: 'Flutter (Mobile)', files: FLUTTER_TEMPLATE },
-    { name: 'Vue (Health)', files: VUE_TEMPLATE },
-    { name: 'Node.js (DAO)', files: NODE_TEMPLATE },
-    { name: 'Next.js (Landing)', files: NEXTJS_TEMPLATE },
-    { name: 'Python (Logistics)', files: PYTHON_TEMPLATE },
+    { name: 'Futurist Starter', files: FUTURIST_STARTER_TEMPLATE, description: 'Modern futuristic UI with animations', icon: '🚀', color: 'from-cyan-400 to-purple-500' },
+    { name: 'React (Finance)', files: REACT_TEMPLATE, description: 'Financial dashboard with charts', icon: '💰', color: 'from-green-400 to-blue-500' },
+    { name: 'React Native (Mobile)', files: REACT_NATIVE_TEMPLATE, description: 'Cross-platform mobile app', icon: '📱', color: 'from-blue-400 to-indigo-500' },
+    { name: 'Flutter (Mobile)', files: FLUTTER_TEMPLATE, description: 'Beautiful mobile UI with Flutter', icon: '🦋', color: 'from-sky-400 to-blue-600' },
+    { name: 'Vue (Health)', files: VUE_TEMPLATE, description: 'Healthcare management system', icon: '⚕️', color: 'from-cyan-400 to-teal-500' },
+    { name: 'Node.js (DAO)', files: NODE_TEMPLATE, description: 'Decentralized organization backend', icon: '🔗', color: 'from-emerald-400 to-green-600' },
+    { name: 'Next.js (Landing)', files: NEXTJS_TEMPLATE, description: 'SEO-optimized landing page', icon: '⚡', color: 'from-gray-400 to-slate-600' },
+    { name: 'Python (Logistics)', files: PYTHON_TEMPLATE, description: 'Supply chain management', icon: '📦', color: 'from-yellow-400 to-orange-500' },
+    { name: 'E-Commerce Store', files: LEGACY_ECOMMERCE_TEMPLATE, description: 'Full-featured online store', icon: '🛍️', color: 'from-purple-400 to-pink-500' },
+    { name: 'Real Estate Portal', files: LEGACY_REAL_ESTATE_TEMPLATE, description: 'Property listing platform', icon: '🏠', color: 'from-green-400 to-emerald-500' },
+    { name: 'Social Network', files: FUTURIST_STARTER_TEMPLATE, description: 'Connect and share with friends', icon: '👥', color: 'from-blue-400 to-purple-500' },
+    { name: 'AI Chatbot', files: FUTURIST_STARTER_TEMPLATE, description: 'Intelligent conversation interface', icon: '🤖', color: 'from-indigo-400 to-purple-600' },
+    { name: 'Portfolio Site', files: FUTURIST_STARTER_TEMPLATE, description: 'Showcase your work beautifully', icon: '🎨', color: 'from-pink-400 to-rose-500' },
+    { name: 'Blog Platform', files: FUTURIST_STARTER_TEMPLATE, description: 'Content management system', icon: '📝', color: 'from-amber-400 to-orange-500' },
+    { name: 'Task Manager', files: FUTURIST_STARTER_TEMPLATE, description: 'Organize your workflow', icon: '✅', color: 'from-teal-400 to-cyan-500' },
 ];
 
 export const LEGACY_TEMPLATES = {

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { GithubIcon, DownloadIcon, DeployIcon, ChevronIcon, SaveIcon, CopyIcon, HistoryIcon, ShareIcon, GitBranchIcon, CommitIcon } from './Icons';
 import { Tooltip } from './Tooltip';
 import { User } from '../types';
@@ -22,28 +23,40 @@ interface HeaderProps {
     onInitRepo: () => void;
     onCommit: () => void;
     onReloadApp: () => void;
+    projectName?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
     user, isPwaInstallable, onInstallClick, onSaveAll,
     onCopyProject, onDownloadProject, onGitHubImport, onDeploy, onVersionHistory,
-    onOpenProfile, onOpenSettings, onLogout, onShare, isRepoInitialized, onInitRepo, onCommit, onReloadApp
+    onOpenProfile, onOpenSettings, onLogout, onShare, isRepoInitialized, onInitRepo, onCommit, onReloadApp, projectName
 }) => {
   const [isMenuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // Don't close if clicking the trigger button or inside the menu
+      if (
+        menuRef.current && !menuRef.current.contains(target) &&
+        triggerRef.current && !triggerRef.current.contains(target)
+      ) {
         setMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    if (isMenuOpen) {
+      // Add a small delay to prevent immediate closing
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+    }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [isMenuOpen]);
 
   return (
-    <header className="px-6 py-3 bg-black/30 backdrop-blur-sm border-b border-cyan-500/20 flex items-center justify-between flex-shrink-0 h-[72px] relative z-20">
+    <header className="px-6 py-3 bg-black/30 backdrop-blur-sm border-b border-cyan-500/20 flex items-center justify-between flex-shrink-0 h-[72px] relative z-[100]">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 bg-gradient-to-tr from-cyan-400 to-purple-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(0,255,255,0.5)]">
             <div className="w-4 h-4 bg-white rounded-full animate-pulse"></div>
@@ -131,9 +144,9 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </Tooltip>
         
-        <div className="relative" ref={menuRef}>
+        <div className="relative">
           <Tooltip text="User Account & Settings" position="bottom" align="end">
-              <button onClick={() => setMenuOpen(!isMenuOpen)} className="flex items-center gap-2 text-gray-300 hover:bg-white/10 p-1 pr-2 rounded-full transition-colors">
+              <button ref={triggerRef} onClick={() => setMenuOpen(!isMenuOpen)} className="flex items-center gap-2 text-gray-300 hover:bg-white/10 p-1 pr-2 rounded-full transition-colors">
                   <div className="w-8 h-8 bg-gradient-to-br from-gray-700 to-gray-800 rounded-full border border-white/20 flex items-center justify-center overflow-hidden">
                       {user.avatarUrl ? (
                         <img src={user.avatarUrl} alt="User Avatar" className="w-full h-full object-cover" />
@@ -146,13 +159,50 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
           </Tooltip>
 
-          {isMenuOpen && (
-            <div className="absolute top-full right-0 mt-2 w-48 bg-gray-800/80 backdrop-blur-md border border-white/20 rounded-lg shadow-2xl py-2 z-50">
-                <a href="#" onClick={(e) => { e.preventDefault(); onOpenProfile(); setMenuOpen(false); }} className="block px-4 py-2 text-sm text-gray-200 hover:bg-white/10">Profile</a>
-                <a href="#" onClick={(e) => { e.preventDefault(); onOpenSettings(); setMenuOpen(false); }} className="block px-4 py-2 text-sm text-gray-200 hover:bg-white/10">Settings</a>
+          {isMenuOpen && createPortal(
+            <div ref={menuRef} className="fixed top-[72px] right-6 w-48 bg-gray-900 border border-white/20 rounded-lg shadow-2xl py-2" style={{ zIndex: 999999, pointerEvents: 'auto' }}>
+                <button 
+                  type="button" 
+                  onClick={(e) => { 
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    console.log('Profile clicked');
+                    onOpenProfile(); 
+                    setMenuOpen(false); 
+                  }} 
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-white/10 cursor-pointer transition-colors"
+                >
+                  Profile
+                </button>
+                <button 
+                  type="button" 
+                  onClick={(e) => { 
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    console.log('Settings clicked');
+                    onOpenSettings(); 
+                    setMenuOpen(false); 
+                  }} 
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-white/10 cursor-pointer transition-colors"
+                >
+                  Settings
+                </button>
                 <div className="h-px bg-white/10 my-1" />
-                <a href="#" onClick={(e) => { e.preventDefault(); onLogout(); setMenuOpen(false); }} className="block px-4 py-2 text-sm text-red-400 hover:bg-red-500/20">Log Out</a>
-            </div>
+                <button 
+                  type="button" 
+                  onClick={(e) => { 
+                    e.preventDefault(); 
+                    e.stopPropagation(); 
+                    console.log('Logout clicked');
+                    onLogout(); 
+                    setMenuOpen(false); 
+                  }} 
+                  className="w-full text-left block px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 font-semibold cursor-pointer transition-colors"
+                >
+                  Log Out
+                </button>
+            </div>,
+            document.body
           )}
         </div>
       </div>

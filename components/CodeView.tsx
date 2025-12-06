@@ -43,6 +43,9 @@ interface CodeViewProps {
   onUndo: () => void;
   onRedo: () => void;
   missionPrompt: string;
+  terminalHeight?: number;
+  isTerminalCollapsed?: boolean;
+  controlPanelWidth?: number;
 }
 
 const ViewModeButton: React.FC<{ 
@@ -76,13 +79,32 @@ export const CodeView: React.FC<CodeViewProps> = ({
   agentStatus, viewMode, setViewMode, generatedMarkup, agentLogs, review,
   searchQuery, setSearchQuery, searchResults, onSearchResultClick, fileFilter,
   onCreateNode, onDeleteNode, onRenameNode, onMoveNode, onSetEditingNode, onCopyPath, onCutNode, onCopyNode, onPasteNode, canPaste,
-  onUndo, onRedo, missionPrompt
+  onUndo, onRedo, missionPrompt, terminalHeight = 200, isTerminalCollapsed = false
 }) => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus-sidebar-width');
+      return saved ? parseInt(saved) : 256;
+    } catch {
+      return 256;
+    }
+  });
+  const [splitPosition, setSplitPosition] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nexus-split-position');
+      return saved ? parseFloat(saved) : 50;
+    } catch {
+      return 50;
+    }
+  });
   
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const previewRef = useRef<HTMLIFrameElement>(null);
+  const isSidebarResizing = useRef(false);
+  const isSplitResizing = useRef(false);
+  const [isResizing, setIsResizing] = useState(false);
   
   const isSyncingScroll = useRef(false);
   const syncTimeout = useRef<number | undefined>(undefined);
@@ -190,64 +212,191 @@ export const CodeView: React.FC<CodeViewProps> = ({
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onUndo, onRedo]);
 
+  // Resizer handlers with touch support
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isSidebarResizing.current) {
+        e.preventDefault();
+        requestAnimationFrame(() => {
+          const newWidth = Math.max(200, Math.min(e.clientX, 500));
+          setSidebarWidth(newWidth);
+        });
+      }
+      
+      if (isSplitResizing.current && viewMode === 'split') {
+        e.preventDefault();
+        requestAnimationFrame(() => {
+          const container = document.getElementById('split-container');
+          if (container) {
+            const rect = container.getBoundingClientRect();
+            const mouseXInContainer = e.clientX - rect.left;
+            const newPosition = Math.max(20, Math.min((mouseXInContainer / rect.width) * 100, 80));
+            setSplitPosition(newPosition);
+          }
+        });
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isSidebarResizing.current) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (touch) {
+          requestAnimationFrame(() => {
+            const newWidth = Math.max(200, Math.min(touch.clientX, 500));
+            setSidebarWidth(newWidth);
+          });
+        }
+      }
+      
+      if (isSplitResizing.current && viewMode === 'split') {
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (touch) {
+          requestAnimationFrame(() => {
+            const container = document.getElementById('split-container');
+            if (container) {
+              const rect = container.getBoundingClientRect();
+              const touchXInContainer = touch.clientX - rect.left;
+              const newPosition = Math.max(20, Math.min((touchXInContainer / rect.width) * 100, 80));
+              setSplitPosition(newPosition);
+            }
+          });
+        }
+      }
+    };
+
+    const handleEnd = () => {
+      if (isSidebarResizing.current || isSplitResizing.current) {
+        // Save to localStorage on end
+        if (isSidebarResizing.current) {
+          try {
+            localStorage.setItem('nexus-sidebar-width', sidebarWidth.toString());
+          } catch (error) {
+            console.warn('Failed to save sidebar width:', error);
+          }
+        }
+        if (isSplitResizing.current) {
+          try {
+            localStorage.setItem('nexus-split-position', splitPosition.toString());
+          } catch (error) {
+            console.warn('Failed to save split position:', error);
+          }
+        }
+        
+        isSidebarResizing.current = false;
+        isSplitResizing.current = false;
+        setIsResizing(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [viewMode, sidebarWidth, splitPosition]);
+
   return (
     <div className="flex h-full w-full bg-[#0d0d0f] text-gray-300 relative overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar - Extends down to StatusBar with rounded corners */}
       <div 
-        className={`${isSidebarCollapsed ? 'w-0' : 'w-64'} flex-shrink-0 border-r border-white/10 bg-[#0a0a0c] transition-all duration-300 flex flex-col`}
+        className={`${isSidebarCollapsed ? 'w-0' : ''} flex-shrink-0 transition-all duration-300 flex flex-row absolute left-0 top-0 z-20`}
+        style={{ 
+          width: isSidebarCollapsed ? 0 : `${sidebarWidth}px`,
+          height: isTerminalCollapsed ? 'calc(100% + 24px)' : `calc(100% + ${terminalHeight}px + 24px)`
+        }}
       >
-        <div className="flex items-center justify-between p-3 border-b border-white/10">
-            <span className="text-xs font-bold text-gray-400 font-orbitron tracking-wider">EXPLORER</span>
-            <div className="flex items-center gap-1">
-                <Tooltip text="Search Files" position="bottom" align="end">
-                    <button onClick={() => setIsSearchOpen(!isSearchOpen)} className={`p-1 hover:bg-white/10 rounded ${isSearchOpen ? 'text-cyan-400' : 'text-gray-500'}`}>
-                        <SearchIcon className="w-4 h-4" />
-                    </button>
-                </Tooltip>
-                <button onClick={() => setSidebarCollapsed(true)} className="p-1 hover:bg-white/10 rounded text-gray-500">
-                    <CloseIcon className="w-4 h-4" />
-                </button>
-            </div>
+        <div className="flex-grow flex flex-col bg-[#0a0a0c] border-r border-white/10 min-w-0 rounded-3xl overflow-hidden">
+          <div className="flex items-center justify-between p-3 border-b border-white/10 flex-shrink-0">
+              <span className="text-xs font-bold text-gray-400 font-orbitron tracking-wider">EXPLORER</span>
+              <div className="flex items-center gap-1">
+                  <Tooltip text="Search Files" position="bottom" align="end">
+                      <button onClick={() => setIsSearchOpen(!isSearchOpen)} className={`p-1 hover:bg-white/10 rounded ${isSearchOpen ? 'text-cyan-400' : 'text-gray-500'}`}>
+                          <SearchIcon className="w-4 h-4" />
+                      </button>
+                  </Tooltip>
+                  <button onClick={() => setSidebarCollapsed(true)} className="p-1 hover:bg-white/10 rounded text-gray-500">
+                      <CloseIcon className="w-4 h-4" />
+                  </button>
+              </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+              {isSearchOpen ? (
+                  <div className="p-2 h-full flex flex-col">
+                      <div className="relative mb-2">
+                          <input 
+                              type="text" 
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              placeholder="Search..." 
+                              autoFocus
+                              className="w-full bg-black/30 border border-white/20 rounded-md py-1.5 pl-8 pr-2 text-sm focus:outline-none focus:border-cyan-500/50 transition-colors"
+                          />
+                          <SearchIcon className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                      <GlobalSearch results={searchResults} onResultClick={onSearchResultClick} />
+                  </div>
+              ) : (
+                  <FileTree 
+                      files={files} 
+                      selectedNodeIds={selectedNodeIds} 
+                      onNodeClick={onNodeClick}
+                      onCreateNode={onCreateNode}
+                      onDeleteNode={onDeleteNode}
+                      onRenameNode={onRenameNode}
+                      onSetEditingNode={onSetEditingNode}
+                      onMoveNode={onMoveNode}
+                      onCopyPath={onCopyPath}
+                      onCutNode={onCutNode}
+                      onCopyNode={onCopyNode}
+                      onPasteNode={onPasteNode}
+                      canPaste={canPaste}
+                  />
+              )}
+          </div>
         </div>
-        
-        <div className="flex-grow overflow-y-auto custom-scrollbar">
-            {isSearchOpen ? (
-                <div className="p-2 h-full flex flex-col">
-                    <div className="relative mb-2">
-                        <input 
-                            type="text" 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search..." 
-                            autoFocus
-                            className="w-full bg-black/30 border border-white/20 rounded-md py-1.5 pl-8 pr-2 text-sm focus:outline-none focus:border-cyan-500/50 transition-colors"
-                        />
-                        <SearchIcon className="w-3.5 h-3.5 text-gray-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    </div>
-                    <GlobalSearch results={searchResults} onResultClick={onSearchResultClick} />
-                </div>
-            ) : (
-                <FileTree 
-                    files={files} 
-                    selectedNodeIds={selectedNodeIds} 
-                    onNodeClick={onNodeClick}
-                    onCreateNode={onCreateNode}
-                    onDeleteNode={onDeleteNode}
-                    onRenameNode={onRenameNode}
-                    onSetEditingNode={onSetEditingNode}
-                    onMoveNode={onMoveNode}
-                    onCopyPath={onCopyPath}
-                    onCutNode={onCutNode}
-                    onCopyNode={onCopyNode}
-                    onPasteNode={onPasteNode}
-                    canPaste={canPaste}
-                />
-            )}
+
+        {/* Sidebar Resizer - On the right side of Explorer */}
+        <div 
+          onMouseDown={(e) => {
+            e.preventDefault();
+            isSidebarResizing.current = true;
+            setIsResizing(true);
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            isSidebarResizing.current = true;
+            setIsResizing(true);
+            document.body.style.userSelect = 'none';
+          }}
+          className={`group w-4 md:w-3 lg:w-2 h-full cursor-col-resize transition-all duration-150 z-10 flex items-center justify-center relative flex-shrink-0 touch-none ${
+            isResizing && isSidebarResizing.current 
+              ? 'bg-cyan-400/80 shadow-[0_0_20px_rgba(34,211,238,0.8)]' 
+              : 'bg-cyan-500/30 hover:bg-cyan-500/50 md:hover:w-3.5 lg:hover:w-2.5 active:bg-cyan-400'
+          }`}
+        >
+          <div className={`h-20 w-1 rounded-full transition-all duration-200 ${
+            isSidebarResizing.current 
+              ? 'bg-cyan-300 shadow-[0_0_15px_rgba(34,211,238,1)] scale-110' 
+              : 'bg-cyan-400 group-hover:bg-cyan-300 group-active:bg-cyan-200 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.8)]'
+          }`} />
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-grow flex flex-col min-w-0 bg-[#0d0d0f] relative">
+      {/* Main Content - Offset by sidebar width */}
+      <div className="flex-grow flex flex-col min-w-0 bg-[#0d0d0f] relative" style={{ marginLeft: isSidebarCollapsed ? 0 : `${sidebarWidth + 8}px`, transition: 'margin-left 300ms' }}>
         {/* Toggle Sidebar Button (Visible when collapsed) */}
         {isSidebarCollapsed && (
             <button 
@@ -258,7 +407,8 @@ export const CodeView: React.FC<CodeViewProps> = ({
             </button>
         )}
 
-        {/* Editor Tabs with Horizontal Scrolling */}
+        {/* Editor Tabs with Horizontal Scrolling - Hidden in preview-only mode */}
+        {viewMode !== 'preview' && (
         <div className="relative flex h-9 bg-[#0a0a0c] border-b border-white/10 select-none group">
             {openFiles.length > 3 && (
                 <>
@@ -267,7 +417,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
                             const container = document.getElementById('tabs-container');
                             if (container) container.scrollBy({ left: -200, behavior: 'smooth' });
                         }}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] opacity-0 group-hover:opacity-100 transition-all"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-8 md:h-8 lg:w-6 lg:h-6 rounded-full bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] opacity-0 group-hover:opacity-100 transition-all touch-manipulation"
                     >
                         <ChevronIcon direction="left" className="w-3 h-3" />
                     </button>
@@ -276,7 +426,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
                             const container = document.getElementById('tabs-container');
                             if (container) container.scrollBy({ left: 200, behavior: 'smooth' });
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] opacity-0 group-hover:opacity-100 transition-all"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 md:w-8 md:h-8 lg:w-6 lg:h-6 rounded-full bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-cyan-400 hover:bg-cyan-500/30 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] opacity-0 group-hover:opacity-100 transition-all touch-manipulation"
                     >
                         <ChevronIcon direction="right" className="w-3 h-3" />
                     </button>
@@ -315,11 +465,12 @@ export const CodeView: React.FC<CodeViewProps> = ({
                 )}
             </div>
         </div>
+        )}
 
         {/* Toolbar */}
         <div className="h-10 border-b border-white/10 flex items-center justify-between px-3 bg-[#0d0d0f]">
              <div className="flex items-center gap-2">
-                 {activeFile && (
+                 {viewMode !== 'preview' && activeFile && (
                      <>
                         <span className="text-xs text-gray-500">{activeFile.path}</span>
                         <div className="h-3 w-px bg-white/10 mx-2" />
@@ -353,13 +504,14 @@ export const CodeView: React.FC<CodeViewProps> = ({
         </div>
 
         {/* Workspace Content */}
-        <div className="flex-grow flex relative overflow-hidden">
+        <div id="split-container" className="flex-grow flex relative overflow-hidden">
             {/* Editor Pane */}
             <div 
                 className={`
                     flex-col h-full bg-[#0d0d0f] transition-all duration-300 relative
-                    ${viewMode === 'code' ? 'w-full' : viewMode === 'split' ? 'w-1/2 border-r border-white/10' : 'w-0 hidden'}
+                    ${viewMode === 'code' ? 'w-full' : viewMode === 'split' ? 'border-r border-white/10' : 'w-0 hidden'}
                 `}
+                style={viewMode === 'split' ? { width: `${splitPosition}%` } : undefined}
             >
                 <CodeEditor 
                     ref={editorRef}
@@ -369,12 +521,43 @@ export const CodeView: React.FC<CodeViewProps> = ({
                 />
             </div>
 
+            {/* Split View Resizer */}
+            {viewMode === 'split' && (
+              <div 
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  isSplitResizing.current = true;
+                  setIsResizing(true);
+                  document.body.style.cursor = 'col-resize';
+                  document.body.style.userSelect = 'none';
+                }}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  isSplitResizing.current = true;
+                  setIsResizing(true);
+                  document.body.style.userSelect = 'none';
+                }}
+                className={`group w-4 md:w-3 lg:w-2 h-full cursor-col-resize transition-all duration-150 z-10 flex items-center justify-center relative flex-shrink-0 touch-none ${
+                  isResizing && isSplitResizing.current 
+                    ? 'bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.8)]' 
+                    : 'bg-gray-800/50 hover:bg-cyan-500/70 md:hover:w-3.5 lg:hover:w-2.5 active:bg-cyan-400'
+                }`}
+              >
+                <div className={`h-16 w-1 rounded-full transition-all duration-200 ${
+                  isResizing && isSplitResizing.current 
+                    ? 'bg-cyan-300 shadow-[0_0_15px_rgba(34,211,238,1)] scale-110' 
+                    : 'bg-gray-600 group-hover:bg-cyan-400 group-active:bg-cyan-300 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.8)]'
+                }`} />
+              </div>
+            )}
+
             {/* Preview Pane */}
             <div 
                 className={`
                     flex-col h-full bg-[#050505] transition-all duration-300 relative
-                    ${viewMode === 'preview' ? 'w-full' : viewMode === 'split' ? 'w-1/2' : 'w-0 hidden'}
+                    ${viewMode === 'preview' ? 'w-full' : viewMode === 'split' ? '' : 'w-0 hidden'}
                 `}
+                style={viewMode === 'split' ? { width: `${100 - splitPosition}%` } : undefined}
             >
                 <Preview 
                     ref={previewRef}

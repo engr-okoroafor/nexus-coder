@@ -26,11 +26,13 @@ const StatusIcon: React.FC<{ status: AgentStatus }> = ({ status }) => {
 
 export const StatusBar: React.FC<StatusBarProps> = ({ agentStatus, message }) => {
     return (
-        <footer className="h-8 bg-black/50 backdrop-blur-sm border-t border-cyan-500/20 flex items-center justify-between px-4 text-sm text-gray-300 font-fira-code flex-shrink-0">
-           <div className="flex items-center gap-3 min-w-0">
+        <footer 
+            className="h-6 bg-black/50 backdrop-blur-sm border-t border-cyan-500/20 flex items-center justify-between px-4 text-xs text-gray-300 font-fira-code flex-shrink-0 w-full"
+        >
+           <div className="flex items-center gap-2 min-w-0">
              <StatusIcon status={agentStatus} />
-             <span className="capitalize flex-shrink-0">{agentStatus}:</span>
-             <span className="text-gray-400 truncate">{message}</span>
+             <span className="capitalize flex-shrink-0 text-xs">{agentStatus}:</span>
+             <span className="text-gray-400 truncate text-xs">{message}</span>
            </div>
         </footer>
     );

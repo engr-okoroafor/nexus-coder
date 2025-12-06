@@ -39,42 +39,21 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event: serve from cache, proxy API, or fetch from network
+// Fetch event: serve from cache or fetch from network
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Proxy for Groq API to bypass CORS
-  if (url.origin === self.origin && url.pathname.startsWith('/groq-api/')) {
-    // Correctly reconstruct the target URL for the Groq API
-    // Ensure we strip /groq-api but keep everything else
-    const targetPath = url.pathname.substring('/groq-api'.length);
-    const apiUrl = `https://api.groq.com${targetPath}`;
-    
-    const proxyRequest = new Request(apiUrl, {
-        method: event.request.method,
-        headers: event.request.headers,
-        body: event.request.body,
-        redirect: 'follow',
-    });
-
-    event.respondWith(
-        fetch(proxyRequest)
-            .then(response => {
-                return response;
-            })
-            .catch(error => {
-                console.error('Groq proxy fetch failed:', error);
-                // Return a JSON error so the app can handle it gracefully instead of HTML 404
-                return new Response(JSON.stringify({ error: `Proxy Error: ${error.message}` }), { 
-                    status: 502, 
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            })
-    );
+  // Skip service worker for API calls to avoid CORS issues
+  if (url.origin !== self.origin || 
+      url.pathname.includes('/api/') || 
+      url.hostname.includes('googleapis.com') ||
+      url.hostname.includes('groq.com') ||
+      url.hostname.includes('duckduckgo.com')) {
+    // Let the browser handle API requests directly
     return;
   }
 
-  // Original cache-first strategy for app assets
+  // Cache-first strategy for app assets only
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -84,8 +63,12 @@ self.addEventListener('fetch', (event) => {
         }
 
         // Not in cache - fetch from network
-        return fetch(event.request);
-      }
-    )
+        return fetch(event.request).catch(() => {
+          // If offline and not in cache, return a basic offline page
+          if (event.request.mode === 'navigate') {
+            return caches.match('/index.html');
+          }
+        });
+      })
   );
 });

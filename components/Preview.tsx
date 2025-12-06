@@ -57,8 +57,9 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
     const isCoding = agentStatus === 'coding' || agentStatus === 'fixing' || agentStatus === 'refactoring' || agentStatus === 'debugging';
     const isPlanning = agentStatus === 'planning' || agentStatus === 'architecting';
     const isFinalizing = agentStatus === 'qa' || agentStatus === 'publishing' || agentStatus === 'evaluating';
+    const isPaused = agentStatus === 'paused';
     // Only show overlay during active work, NOT when idle or completed.
-    const isBuilding = isCoding || isPlanning || isFinalizing;
+    const isBuilding = isCoding || isPlanning || isFinalizing || isPaused;
 
     const isMobileProject = useMemo(() => {
         const isExpo = findFileByPath('/app.json', projectFiles) !== null;
@@ -106,14 +107,39 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
         return () => document.removeEventListener('fullscreenchange', onFullScreenChange);
     }, [onFullScreenChange]);
 
-    const IframeContent = generatedMarkup ? (
+    // Log when markup changes
+    useEffect(() => {
+        if (generatedMarkup) {
+            console.log('📺 Preview component received markup:', generatedMarkup.length, 'characters');
+            console.log('📺 First 500 chars of markup:', generatedMarkup.substring(0, 500));
+            
+            // Check if it's valid HTML
+            const hasHtmlTag = generatedMarkup.includes('<html') || generatedMarkup.includes('<!DOCTYPE');
+            const hasBody = generatedMarkup.includes('<body');
+            const hasContent = generatedMarkup.trim().length > 0;
+            
+            console.log('📺 Markup validation:', { hasHtmlTag, hasBody, hasContent });
+            
+            if (!hasContent) {
+                console.error('❌ Markup is empty!');
+            } else if (!hasHtmlTag && !hasBody) {
+                console.warn('⚠️ Markup might be incomplete - no HTML structure detected');
+            }
+        } else {
+            console.log('📺 Preview component: No markup yet');
+        }
+    }, [generatedMarkup]);
+
+    const IframeContent = generatedMarkup && generatedMarkup.trim().length > 0 ? (
         <iframe
             ref={ref}
             key={iframeKey}
             srcDoc={generatedMarkup}
             title="Live Preview"
             sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"
-            className="w-full h-full border-none"
+            className="w-full h-full border-none bg-white"
+            onLoad={() => console.log('✅ Iframe loaded successfully')}
+            onError={(e) => console.error('❌ Iframe error:', e)}
         />
     ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-[#0d0d0f] text-gray-400">
@@ -125,28 +151,35 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
                     <p className="text-xs text-gray-600 mt-2">Waiting for index.html</p>
                 </>
             )}
+            {/* Show message if markup exists but is empty */}
+            {generatedMarkup && generatedMarkup.trim().length === 0 && (
+                <div className="text-center">
+                    <p className="text-yellow-400 font-semibold mb-2">⚠️ Empty HTML Detected</p>
+                    <p className="text-xs text-gray-500">The HTML file exists but has no content</p>
+                </div>
+            )}
         </div>
     );
 
     return (
         <div className="bg-black/30 p-2 flex flex-col h-full w-full overflow-hidden" ref={previewContainerRef}>
-            <div className="flex-shrink-0 flex items-center justify-between gap-2 p-2 bg-black/20 rounded-t-xl">
+            <div className="flex-shrink-0 flex items-center justify-between gap-2 p-2 bg-black/20 rounded-t-xl relative z-[60]">
                 <div className="flex items-center gap-2">
                     <Tooltip text="Reload preview" position="bottom" align="start">
-                        <button onClick={handleReload} className="p-2 text-gray-400 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2">
-                            <ReloadIcon className="w-5 h-5" />
-                            {deviceMode === 'desktop' && <span className="text-xs font-bold font-orbitron text-gray-300">RELOAD</span>}
+                        <button onClick={handleReload} className="flex items-center gap-1.5 px-2 py-1.5 text-gray-400 hover:bg-white/10 hover:text-white rounded-lg transition-colors relative z-[60] text-xs font-semibold">
+                            <ReloadIcon className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Reload</span>
                         </button>
                     </Tooltip>
                      <Tooltip text={isFullScreen ? "Exit fullscreen" : "Enter fullscreen"} position="bottom" align="start">
-                        <button onClick={handleFullScreenToggle} className="p-2 text-gray-400 hover:bg-white/10 rounded-lg transition-colors flex items-center gap-2">
-                            <FullScreenIcon isFullScreen={isFullScreen} className="w-5 h-5" />
-                            {deviceMode === 'desktop' && <span className="text-xs font-bold font-orbitron text-gray-300">{isFullScreen ? 'EXIT' : 'FULLSCREEN'}</span>}
+                        <button onClick={handleFullScreenToggle} className="flex items-center gap-1.5 px-2 py-1.5 text-gray-400 hover:bg-white/10 hover:text-white rounded-lg transition-colors relative z-[60] text-xs font-semibold">
+                            <FullScreenIcon isFullScreen={isFullScreen} className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">{isFullScreen ? 'Exit' : 'Fullscreen'}</span>
                         </button>
                     </Tooltip>
                 </div>
                  {!isMobileProject && (
-                    <div className="flex items-center gap-2 pr-6">
+                    <div className="flex items-center gap-2">
                         <DeviceButton onClick={() => setDeviceMode('desktop')} isActive={deviceMode === 'desktop'} tooltipText="Desktop view"><DesktopIcon className="w-5 h-5" /></DeviceButton>
                         <DeviceButton onClick={() => setDeviceMode('tablet')} isActive={deviceMode === 'tablet'} tooltipText="Tablet view"><TabletIcon className="w-5 h-5" /></DeviceButton>
                         <DeviceButton onClick={() => setDeviceMode('mobile')} isActive={deviceMode === 'mobile'} tooltipText="Mobile view"><MobileIcon className="w-5 h-5" /></DeviceButton>
@@ -160,13 +193,25 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
                     <div className={`absolute z-50 flex items-center justify-center pointer-events-none transition-all duration-500 ease-in-out ${
                         isCoding || isFinalizing
                         ? 'top-4 right-4 bottom-auto left-auto w-auto h-auto' // Small badge during coding/debugging
+                        : isPaused
+                        ? 'top-4 right-4 bottom-auto left-auto w-auto h-auto' // Small badge when paused
                         : 'inset-0 bg-black/40 backdrop-blur-[2px]' // Full screen during planning
                     }`}>
-                        <div className={`bg-gray-900/90 backdrop-blur-md border border-cyan-500/50 rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.3)] flex flex-col items-center animate-pulse transition-all duration-500 ${
-                            isCoding || isFinalizing ? 'p-3 scale-90' : 'p-6'
+                        <div className={`bg-gray-900/90 backdrop-blur-md border ${isPaused ? 'border-yellow-500/50' : 'border-cyan-500/50'} rounded-2xl shadow-[0_0_30px_${isPaused ? 'rgba(234,179,8,0.3)' : 'rgba(34,211,238,0.3)'}] flex flex-col items-center ${isPaused ? '' : 'animate-pulse'} transition-all duration-500 ${
+                            isCoding || isFinalizing || isPaused ? 'p-3 scale-90' : 'p-6'
                         }`}>
-                            <div className={`${isCoding || isFinalizing ? 'w-6 h-6 border-2' : 'w-12 h-12 border-4'} border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin ${isCoding || isFinalizing ? 'mb-0' : 'mb-4'}`}></div>
-                            {!(isCoding || isFinalizing) && (
+                            {isPaused ? (
+                                <>
+                                    <div className="w-6 h-6 flex items-center justify-center text-yellow-400 mb-0">
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                                        </svg>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className={`${isCoding || isFinalizing ? 'w-6 h-6 border-2' : 'w-12 h-12 border-4'} border-t-cyan-400 border-r-transparent border-b-cyan-400 border-l-transparent rounded-full animate-spin ${isCoding || isFinalizing ? 'mb-0' : 'mb-4'}`}></div>
+                            )}
+                            {!(isCoding || isFinalizing || isPaused) && (
                                 <>
                                     <h3 className="font-orbitron text-cyan-300 text-lg tracking-widest">SYSTEM BUILDING...</h3>
                                     <p className="text-xs text-cyan-500/70 mt-1 font-fira-code">Compiling Neural Modules</p>

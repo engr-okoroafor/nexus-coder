@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface TooltipProps {
   children: React.ReactNode;
@@ -8,25 +9,58 @@ interface TooltipProps {
 }
 
 export const Tooltip: React.FC<TooltipProps> = ({ children, text, position = 'top', align = 'center' }) => {
-  const positionClasses = {
-    top: 'bottom-full mb-2',
-    bottom: 'top-full mt-2',
-  };
+  const [isVisible, setIsVisible] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
 
-  const alignClasses = {
-    start: 'left-0',
-    center: 'left-1/2 -translate-x-1/2',
-    end: 'right-0',
-  };
+  useEffect(() => {
+    if (isVisible && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const tooltipWidth = 300; // max-w-xs approximate width
+      
+      let top = position === 'top' ? rect.top - 40 : rect.bottom + 8;
+      let left = rect.left;
+      
+      if (align === 'center') {
+        left = rect.left + rect.width / 2 - tooltipWidth / 2;
+      } else if (align === 'end') {
+        left = rect.right - tooltipWidth;
+      }
+      
+      // Ensure tooltip stays within viewport
+      if (left + tooltipWidth > window.innerWidth) {
+        left = window.innerWidth - tooltipWidth - 10;
+      }
+      if (left < 10) {
+        left = 10;
+      }
+      
+      setTooltipPosition({ top, left });
+    }
+  }, [isVisible, position, align]);
 
   return (
-    <div className="relative inline-block group">
-      {children}
-      <div
-        className={`absolute z-50 w-max max-w-xs px-4 py-2 text-xs font-semibold text-white bg-black/50 backdrop-blur-md border border-cyan-400/30 rounded-3xl shadow-[0_0_15px_rgba(0,255,255,0.2)] invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${positionClasses[position]} ${alignClasses[align]}`}
+    <>
+      <div 
+        ref={triggerRef}
+        className="relative inline-block"
+        onMouseEnter={() => setIsVisible(true)}
+        onMouseLeave={() => setIsVisible(false)}
       >
-        {text}
+        {children}
       </div>
-    </div>
+      {isVisible && createPortal(
+        <div
+          className="fixed z-[99999] w-max max-w-xs px-4 py-2 text-xs font-semibold text-white bg-black/90 backdrop-blur-md border border-cyan-400/30 rounded-3xl shadow-[0_0_15px_rgba(0,255,255,0.2)] transition-opacity duration-300 pointer-events-none"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+          }}
+        >
+          {text}
+        </div>,
+        document.body
+      )}
+    </>
   );
 };

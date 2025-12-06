@@ -6,6 +6,8 @@ interface TerminalProps {
     logs: string[];
     isCollapsed: boolean;
     onToggleCollapse: () => void;
+    sidebarWidth?: number;
+    isSidebarCollapsed?: boolean;
 }
 
 type TerminalTab = 'logs' | 'terminal';
@@ -65,22 +67,38 @@ const VirtualizedList: React.FC<{
 };
 
 
-export const Terminal: React.FC<TerminalProps> = ({ logs, isCollapsed, onToggleCollapse }) => {
+export const Terminal: React.FC<TerminalProps> = ({ logs, isCollapsed, onToggleCollapse, sidebarWidth = 256, isSidebarCollapsed = false }) => {
     const [activeTab, setActiveTab] = useState<TerminalTab>('logs');
     const [lines, setLines] = useState<string[]>([
-        'Interactive terminal ready.',
+        'Nexus Coder Terminal v1.0.0',
         'Type `help` for available commands.',
+        '',
     ]);
     const [command, setCommand] = useState('');
+    const [commandHistory, setCommandHistory] = useState<string[]>([]);
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const handleCommandSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && command.trim()) {
             e.preventDefault();
-            const newLines: string[] = [...lines, `> ${command}`];
+            const cmd = command.trim();
+            const newLines: string[] = [...lines, `$ ${cmd}`];
             
-            switch(command.toLowerCase().trim()) {
+            // Add to history
+            setCommandHistory(prev => [...prev, cmd]);
+            setHistoryIndex(-1);
+            
+            switch(cmd.toLowerCase()) {
                 case 'help':
-                    newLines.push('Available: help, clear, logs');
+                    newLines.push('Available commands:');
+                    newLines.push('  help       - Show this help message');
+                    newLines.push('  clear      - Clear terminal output');
+                    newLines.push('  logs       - Switch to Agent Logs tab');
+                    newLines.push('  echo <msg> - Print a message');
+                    newLines.push('  date       - Show current date and time');
+                    newLines.push('  pwd        - Print working directory');
+                    newLines.push('  ls         - List project files');
                     break;
                 case 'clear':
                     setLines([]);
@@ -88,13 +106,55 @@ export const Terminal: React.FC<TerminalProps> = ({ logs, isCollapsed, onToggleC
                     return;
                 case 'logs':
                     setActiveTab('logs');
+                    newLines.push('Switched to Agent Logs');
+                    break;
+                case 'date':
+                    newLines.push(new Date().toString());
+                    break;
+                case 'pwd':
+                    newLines.push('/workspace/nexus-coder');
+                    break;
+                case 'ls':
+                    newLines.push('index.html  App.tsx  components/  services/  utils.ts');
                     break;
                 default:
-                    newLines.push(`Command not found: ${command}`);
+                    if (cmd.startsWith('echo ')) {
+                        newLines.push(cmd.substring(5));
+                    } else {
+                        newLines.push(`bash: ${cmd}: command not found`);
+                        newLines.push('Type `help` for available commands');
+                    }
             }
 
             setLines(newLines);
             setCommand('');
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (commandHistory.length > 0) {
+                const newIndex = historyIndex === -1 ? commandHistory.length - 1 : Math.max(0, historyIndex - 1);
+                setHistoryIndex(newIndex);
+                setCommand(commandHistory[newIndex]);
+            }
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (historyIndex !== -1) {
+                const newIndex = historyIndex + 1;
+                if (newIndex >= commandHistory.length) {
+                    setHistoryIndex(-1);
+                    setCommand('');
+                } else {
+                    setHistoryIndex(newIndex);
+                    setCommand(commandHistory[newIndex]);
+                }
+            }
+        } else if (e.key === 'Tab') {
+            e.preventDefault();
+            // Basic autocomplete
+            const availableCommands = ['help', 'clear', 'logs', 'echo', 'date', 'pwd', 'ls'];
+            const matches = availableCommands.filter(c => c.startsWith(command.toLowerCase()));
+            if (matches.length === 1) {
+                setCommand(matches[0]);
+            }
         }
     }
     
@@ -108,16 +168,20 @@ export const Terminal: React.FC<TerminalProps> = ({ logs, isCollapsed, onToggleC
     );
 
     return (
-        <div className="h-full flex flex-col bg-black/40">
-            <div className="flex-shrink-0 px-4 border-b border-purple-500/20 flex items-center justify-between h-10">
-                <div className="flex items-center">
+        <div className="h-full w-full flex flex-col bg-black/40">
+            <div className="flex-shrink-0 px-3 pr-4 border-b border-purple-500/20 flex items-center justify-between h-10 bg-black/60 min-w-0">
+                <div className="flex items-center min-w-0 flex-shrink">
                     <TabButton tab="logs">AGENT LOGS</TabButton>
                     <TabButton tab="terminal">TERMINAL</TabButton>
                 </div>
-                <div>
-                    <Tooltip text={isCollapsed ? "Expand" : "Collapse"} position="top" align="end">
-                        <button onClick={onToggleCollapse} className="p-1 text-gray-500 hover:text-white rounded-md hover:bg-white/10">
-                            <ChevronIcon direction={isCollapsed ? 'up' : 'down'} className="w-5 h-5" />
+                <div className="flex-shrink-0 ml-2">
+                    <Tooltip text={isCollapsed ? "Expand Terminal" : "Collapse Terminal"} position="top" align="center">
+                        <button 
+                            onClick={onToggleCollapse} 
+                            className="p-1.5 text-purple-400 hover:text-purple-300 rounded-md bg-purple-500/20 hover:bg-purple-500/30 transition-all border border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.4)]"
+                            aria-label={isCollapsed ? "Expand Terminal" : "Collapse Terminal"}
+                        >
+                            <ChevronIcon direction={isCollapsed ? 'up' : 'down'} className="w-4 h-4" />
                         </button>
                     </Tooltip>
                 </div>
