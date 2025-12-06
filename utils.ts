@@ -403,3 +403,32 @@ export class RateLimiter {
     }, delay);
   }
 }
+
+/**
+ * Remove empty folders from file tree recursively
+ * A folder is considered empty if it has no children or all its children are empty folders
+ */
+export const removeEmptyFolders = (nodes: FileNode[]): FileNode[] => {
+  return nodes.filter(node => {
+    if (node.type === 'file') {
+      return true; // Keep all files
+    }
+    
+    if (node.type === 'folder') {
+      if (!node.children || node.children.length === 0) {
+        return false; // Remove empty folders
+      }
+      
+      // Recursively clean children
+      node.children = removeEmptyFolders(node.children);
+      
+      // After cleaning, check if folder is now empty
+      return node.children.length > 0;
+    }
+    
+    return true;
+  }).map(node => ({
+    ...node,
+    children: node.children ? removeEmptyFolders(node.children) : node.children
+  }));
+};

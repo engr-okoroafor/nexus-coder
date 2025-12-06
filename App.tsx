@@ -8,7 +8,7 @@ import { generatePlan, implementTask, detectProblems, fixProblem, reviewCode, pa
 import { MOCK_INITIAL_FILES, AI_MODELS, MODEL_LIMITS, DEFAULT_APP_SETTINGS } from './constants';
 import { ALL_TEMPLATES, LEGACY_TEMPLATES } from './templates';
 import { Billing } from './components/Billing';
-import { fileToBase64, addNodeToTree, removeNodeFromTree, updateNodeInTree, moveNodeInTree, generateId, downloadProjectAsZip, duplicateNode, findFileByPath } from './utils';
+import { fileToBase64, addNodeToTree, removeNodeFromTree, updateNodeInTree, moveNodeInTree, generateId, downloadProjectAsZip, duplicateNode, findFileByPath, removeEmptyFolders } from './utils';
 import { StatusBar } from './components/StatusBar';
 import { Terminal } from './components/Terminal';
 import { ProjectTemplateModal } from './components/ProjectTemplateModal';
@@ -162,19 +162,31 @@ const App: React.FC = () => {
   const [selectedModel, setSelectedModel] = useState<string>(AI_MODELS[0]);
   
   const [viewMode, setViewMode] = useState<ViewMode>('split');
-  const [generatedMarkup, setGeneratedMarkup] = useState<string>('');
-  
-  // Initialize preview with default HTML on mount
-  useEffect(() => {
-    if (projectFiles.length > 0 && !generatedMarkup) {
-      console.log('🚀 Initializing preview on mount...');
-      const bundle = previewUpdateAgent.processFiles(projectFiles);
-      if (bundle.html) {
-        console.log('✅ Initial preview set with', bundle.html.length, 'characters');
-        setGeneratedMarkup(bundle.html);
+  const [generatedMarkup, setGeneratedMarkup] = useState<string>(() => {
+    // Initialize preview immediately with MOCK_INITIAL_FILES
+    console.log('🚀 Initializing preview with MOCK_INITIAL_FILES...');
+    const initialState = getInitialState();
+    console.log('📁 Initial state has', initialState.projectFiles.length, 'files');
+    
+    if (initialState.projectFiles.length > 0) {
+      console.log('📄 Files:', initialState.projectFiles.map(f => f.name).join(', '));
+      const bundle = previewUpdateAgent.processFiles(initialState.projectFiles);
+      console.log('📦 Bundle result:', { hasHtml: !!bundle.html, htmlLength: bundle.html?.length || 0 });
+      
+      if (bundle.html && bundle.html.trim().length > 0) {
+        console.log('✅ Initial preview initialized with', bundle.html.length, 'characters');
+        console.log('📄 First 200 chars:', bundle.html.substring(0, 200));
+        return bundle.html;
+      } else {
+        console.warn('⚠️ Bundle HTML is empty or missing');
       }
+    } else {
+      console.warn('⚠️ No initial files found');
     }
-  }, []); // Run only once on mount
+    
+    console.log('❌ Returning empty string for generatedMarkup');
+    return '';
+  });
   
   const [installPromptEvent, setInstallPromptEvent] = useState<Event | null>(null);
   const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
@@ -547,6 +559,8 @@ const App: React.FC = () => {
 
     // Use Preview Update Agent to process all files
     console.log('⚙️ Processing files with Preview Update Agent...');
+    console.log('📁 Project files:', projectFiles.map(f => f.name).join(', '));
+    
     const bundle = previewUpdateAgent.processFiles(projectFiles);
     console.log('📦 Bundle created:', { 
       hasHtml: !!bundle.html, 
@@ -558,8 +572,10 @@ const App: React.FC = () => {
     // Always update if we have HTML content (not just when hasChanges is true)
     if (bundle.html && bundle.html.trim().length > 0) {
       console.log('✅ Updating preview - HTML length:', bundle.html.length);
+      console.log('📄 First 300 chars of HTML:', bundle.html.substring(0, 300));
       setGeneratedMarkup(bundle.html);
       console.log('🔄 Preview updated with new content');
+      addLog(`📺 Preview updated: ${bundle.html.length} chars, ${bundle.css.length} CSS, ${bundle.js.length} JS`);
       
       // Get file statistics
       const stats = previewUpdateAgent.getFileStats(projectFiles);
@@ -1515,20 +1531,27 @@ Simply describe what you want to build, and I'll:
             });
         }
 
-        state.tasks = state.tasks.map((t, idx) => idx === state.currentTaskIndex ? { ...t, status: 'completed' } : t);
-        state.currentTaskIndex++;
-        state.agentLogs.push(`✓ Task completed: ${task.description}`);
+        // Mark task as completed - create new arrays to ensure React detects changes
+        const updatedTasks = state.tasks.map((t, idx) => 
+            idx === state.currentTaskIndex ? { ...t, status: 'completed' as const } : t
+        );
+        const updatedLogs = [...state.agentLogs, `✓ Task completed: ${task.description}`];
         
-        // Update state with all changes
+        // Update state with all changes - use immutable updates
         setState(prev => ({
             ...prev,
             projectFiles: state.projectFiles,
-            tasks: state.tasks,
-            currentTaskIndex: state.currentTaskIndex,
-            agentLogs: state.agentLogs,
+            tasks: updatedTasks,
+            currentTaskIndex: state.currentTaskIndex + 1,
+            agentLogs: updatedLogs,
             openFiles: newOpenFiles,
             activeFileId: newActiveFileId || prev.activeFileId
         }));
+        
+        // Update local state for next iteration
+        state.tasks = updatedTasks;
+        state.currentTaskIndex++;
+        state.agentLogs = updatedLogs;
         
         // Small delay to allow UI to update between tasks (improves perceived real-time feel)
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -1594,14 +1617,17 @@ Simply describe what you want to build, and I'll:
           const score = evaluationResult?.score ?? 'N/A';
           const quality = evaluationResult?.quality ?? 'Unknown';
 
+          // Clean up empty folders before completing
+          const cleanedFiles = removeEmptyFolders(state.projectFiles);
+          
           setState(prev => ({ 
               ...prev, 
-              projectFiles: state.projectFiles, 
+              projectFiles: cleanedFiles, 
               agentStatus: 'completed',
               statusMessage: `Mission Complete. Score: ${score}/100 (${quality})` 
           }));
           
-          const indexHtml = findHtmlFile(state.projectFiles);
+          const indexHtml = findHtmlFile(cleanedFiles);
           if (indexHtml) setGeneratedMarkup(indexHtml.content || '');
       }
 
@@ -1635,6 +1661,13 @@ Simply describe what you want to build, and I'll:
   const restoreMission = (prompt: string) => {
       setMissionPrompt(prompt);
       setState(prev => ({ ...prev, prompt }));
+  };
+
+  const deleteMission = (missionId: string) => {
+      setState(prev => ({
+          ...prev,
+          missionHistory: prev.missionHistory.filter(m => m.id !== missionId)
+      }));
   };
 
   return (
@@ -1770,6 +1803,7 @@ Simply describe what you want to build, and I'll:
                         onAddDiscussionLog={addDiscussionLog}
                         missionHistory={missionHistory}
                         onRestoreMission={restoreMission}
+                        onDeleteMission={deleteMission}
                         onLoadLegacyProject={handleLoadLegacyProject}
                         agentLogs={agentLogs}
                     />
@@ -1845,17 +1879,19 @@ Simply describe what you want to build, and I'll:
                             onUndo={handleUndo}
                             onRedo={handleRedo}
                             missionPrompt={missionPrompt}
+                            projectName={projectName}
                             terminalHeight={terminalHeight}
                             isTerminalCollapsed={isTerminalCollapsed}
                         />
                     </div>
                     
-                    {/* Terminal Section - Aligned with CodeView */}
+                    {/* Terminal Section - Aligned with CodeView content, offset by sidebar */}
                     <div 
                         className="flex-shrink-0 flex flex-col overflow-visible transition-all duration-300"
-                        style={{ 
+                        style={{
                             marginLeft: isSidebarCollapsed ? 0 : `${sidebarWidth + 8}px`,
-                            width: isSidebarCollapsed ? '100%' : `calc(100% - ${sidebarWidth + 8}px)`
+                            width: isSidebarCollapsed ? '100%' : `calc(100% - ${sidebarWidth + 8}px)`,
+                            transition: 'margin-left 300ms, width 300ms'
                         }}
                     >
                         {/* Terminal Resizer - Subtle and refined */}

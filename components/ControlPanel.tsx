@@ -39,6 +39,7 @@ interface ControlPanelProps {
   onAddDiscussionLog: (message: string) => void;
   missionHistory: Mission[];
   onRestoreMission: (prompt: string) => void;
+  onDeleteMission: (missionId: string) => void;
   onLoadLegacyProject: (template: { name: string, files: FileNode[] }) => void;
   agentLogs: string[];
 }
@@ -341,7 +342,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     tasks, problems, activeProblemId, prompt, setPrompt, missionPrompt, statusMessage, projectName, setProjectName, onGenerate, agentStatus, selectedModel, setSelectedModel,
     onFileUpload, uploadedFiles, 
     pauseReason, userInputForPause, setUserInputForPause, onResume, onReset, onStop, onNewProject, onBillingClick,
-    onAddDiscussionLog, missionHistory, onRestoreMission, onLoadLegacyProject, agentLogs
+    onAddDiscussionLog, missionHistory, onRestoreMission, onDeleteMission, onLoadLegacyProject, agentLogs
 }) => {
   
   const isAgentActive = agentStatus === 'planning' || agentStatus === 'coding' || agentStatus === 'reviewing' || agentStatus === 'fixing' || agentStatus === 'debugging';
@@ -356,6 +357,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   const recognitionRef = useRef<any>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [missionToDelete, setMissionToDelete] = useState<{ id: string; prompt: string } | null>(null);
   const [pastedImages, setPastedImages] = useState<string[]>([]);
 
   const [isSelectModalOpen, setSelectModalOpen] = useState(false);
@@ -535,15 +537,29 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         )}
                         
                         {isHistoryOpen && (
-                            <div className="absolute z-[9999] top-full right-0 mt-2 w-72 bg-[#0d0d12] border border-purple-500/30 rounded-2xl shadow-xl max-h-64 overflow-y-auto custom-scrollbar p-2 animate-fade-in">
+                            <div className="absolute z-[9999] top-full left-1/2 mt-2 w-72 max-w-[calc(100vw-2rem)] bg-[#0d0d12] border border-purple-500/30 rounded-2xl shadow-xl max-h-64 overflow-y-auto custom-scrollbar p-2 animate-fade-in" style={{ transform: 'translateX(-50%)' }}>
                                 <h4 className="text-xs font-orbitron text-gray-400 px-2 py-1 mb-1">Previous Missions</h4>
                                 {missionHistory.length === 0 ? (
                                     <div className="text-center p-4 text-xs text-gray-500 italic">No previous missions.</div>
                                 ) : (
                                     missionHistory.map((m) => (
-                                        <div key={m.id} onClick={() => { onRestoreMission(m.prompt); setIsHistoryOpen(false); }} className="p-2 hover:bg-white/5 rounded-lg cursor-pointer group transition-colors">
-                                            <p className="text-xs text-gray-300 line-clamp-2">{m.prompt}</p>
-                                            <span className="text-[10px] text-gray-500">{formatRelativeTime(new Date(m.timestamp).toISOString())}</span>
+                                        <div key={m.id} className="p-2 hover:bg-white/5 rounded-lg group transition-colors flex items-start gap-2">
+                                            <div onClick={() => { onRestoreMission(m.prompt); setIsHistoryOpen(false); }} className="flex-grow cursor-pointer min-w-0">
+                                                <p className="text-xs text-gray-300 line-clamp-3 break-words" title={m.prompt}>{m.prompt}</p>
+                                                <span className="text-[10px] text-gray-500">{formatRelativeTime(new Date(m.timestamp).toISOString())}</span>
+                                            </div>
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setMissionToDelete({ id: m.id, prompt: m.prompt });
+                                                }}
+                                                className="p-1 hover:bg-red-500/20 rounded text-red-400 hover:text-red-300 transition-colors"
+                                                title="Delete mission"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
                                         </div>
                                     ))
                                 )}
@@ -874,6 +890,57 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             </div>
         </div>
       </GlassCard>
+
+      {/* Glassmorphic Delete Confirmation Modal */}
+      {missionToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md animate-fade-in" onClick={() => setMissionToDelete(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="relative rounded-3xl backdrop-blur-xl bg-gray-900/80 border border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.15)] p-6 max-w-sm w-full mx-4 animate-scale-in">
+            {/* Subtle glow effect */}
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-cyan-500/5 to-purple-500/5 blur-xl -z-10"></div>
+            
+            {/* Warning Icon - Smaller and subtle */}
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Title - Smaller */}
+            <h3 className="text-lg font-orbitron font-bold text-center mb-3 text-white">
+              Delete Mission?
+            </h3>
+
+            {/* Message - Compact */}
+            <p className="text-gray-400 text-center mb-3 text-xs">
+              This action cannot be undone.
+            </p>
+            <div className="bg-black/40 rounded-2xl p-2.5 mb-4 border border-cyan-500/10">
+              <p className="text-xs text-gray-400 line-clamp-2">"{missionToDelete.prompt}"</p>
+            </div>
+
+            {/* Buttons - Compact */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMissionToDelete(null)}
+                className="flex-1 rounded-3xl px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 text-sm font-medium transition-all duration-300 border border-white/10 hover:border-cyan-500/30"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteMission(missionToDelete.id);
+                  setMissionToDelete(null);
+                }}
+                className="flex-1 rounded-3xl px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-sm font-medium transition-all duration-300 border border-cyan-500/30 hover:border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

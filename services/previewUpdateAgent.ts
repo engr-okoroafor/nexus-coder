@@ -178,6 +178,7 @@ export class PreviewUpdateAgent {
 
   /**
    * Build complete HTML with injected CSS and JS
+   * Ensures production-quality rendering with proper meta tags and structure
    */
   private buildCompleteHtml(
     htmlFile: FileNode,
@@ -186,46 +187,118 @@ export class PreviewUpdateAgent {
   ): string {
     let html = htmlFile.content || '';
 
-    // Inject CSS files
+    // Ensure proper HTML structure
+    const hasDoctype = html.toLowerCase().includes('<!doctype');
+    const hasHtmlTag = html.toLowerCase().includes('<html');
+    const hasHead = html.toLowerCase().includes('<head');
+    const hasBody = html.toLowerCase().includes('<body');
+
+    // Add DOCTYPE if missing
+    if (!hasDoctype) {
+      html = '<!DOCTYPE html>\n' + html;
+    }
+
+    // Wrap in proper HTML structure if needed
+    if (!hasHtmlTag) {
+      html = `<html lang="en">\n${html}\n</html>`;
+    }
+
+    // Ensure head section exists with essential meta tags
+    if (!hasHead) {
+      const essentialHead = `
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Preview</title>
+</head>`;
+      
+      if (html.includes('<html')) {
+        html = html.replace(/<html[^>]*>/i, (match) => `${match}\n${essentialHead}`);
+      } else {
+        html = essentialHead + html;
+      }
+    } else {
+      // Ensure viewport meta tag exists for responsive design
+      if (!html.includes('viewport')) {
+        const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1.0">';
+        if (html.includes('<head>')) {
+          html = html.replace('<head>', `<head>\n  ${viewportMeta}`);
+        } else if (html.includes('<head')) {
+          html = html.replace(/<head[^>]*>/i, (match) => `${match}\n  ${viewportMeta}`);
+        }
+      }
+    }
+
+    // Inject CSS files with proper formatting
     if (cssFiles.length > 0) {
       const cssInjection = cssFiles
         .map(cssFile => {
           const content = cssFile.content || '';
-          return `<style data-file="${cssFile.name}">\n${content}\n</style>`;
+          return `  <style data-file="${cssFile.name}">\n${content}\n  </style>`;
         })
         .join('\n');
 
-      // Try to inject before </head>
+      // Inject before </head>
       if (html.includes('</head>')) {
         html = html.replace('</head>', `${cssInjection}\n</head>`);
       } else if (html.includes('<head>')) {
         html = html.replace('<head>', `<head>\n${cssInjection}`);
-      } else if (html.includes('<html>')) {
-        html = html.replace('<html>', `<html>\n<head>${cssInjection}</head>`);
-      } else {
-        // No head tag, prepend CSS
-        html = `<head>${cssInjection}</head>\n${html}`;
       }
     }
 
-    // Inject JS files
+    // Ensure body tag exists
+    if (!hasBody) {
+      const bodyContent = html.replace(/<\/head>/i, '</head>\n<body>\n').replace(/<\/html>/i, '\n</body>\n</html>');
+      html = bodyContent;
+    }
+
+    // Inject JS files before </body> for better performance
     if (jsFiles.length > 0) {
       const jsInjection = jsFiles
         .map(jsFile => {
           const content = jsFile.content || '';
-          return `<script data-file="${jsFile.name}">\n${content}\n</script>`;
+          return `  <script data-file="${jsFile.name}">\n${content}\n  </script>`;
         })
         .join('\n');
 
-      // Try to inject before </body>
+      // Inject before </body>
       if (html.includes('</body>')) {
         html = html.replace('</body>', `${jsInjection}\n</body>`);
       } else {
-        // No body tag, append JS
-        html = `${html}\n${jsInjection}`;
+        // No body tag, append JS before </html>
+        html = html.replace('</html>', `${jsInjection}\n</html>`);
       }
     }
 
+    // Add smooth scrolling and better defaults
+    const enhancementStyles = `
+  <style data-enhancement="true">
+    * {
+      box-sizing: border-box;
+    }
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+  </style>`;
+
+    // Inject enhancement styles
+    if (html.includes('</head>')) {
+      html = html.replace('</head>', `${enhancementStyles}\n</head>`);
+    }
+
+    console.log('🎨 Preview Agent: Enhanced HTML with production-quality structure');
     return html;
   }
 

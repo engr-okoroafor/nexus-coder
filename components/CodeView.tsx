@@ -43,6 +43,7 @@ interface CodeViewProps {
   onUndo: () => void;
   onRedo: () => void;
   missionPrompt: string;
+  projectName?: string;
   terminalHeight?: number;
   isTerminalCollapsed?: boolean;
   controlPanelWidth?: number;
@@ -79,7 +80,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
   agentStatus, viewMode, setViewMode, generatedMarkup, agentLogs, review,
   searchQuery, setSearchQuery, searchResults, onSearchResultClick, fileFilter,
   onCreateNode, onDeleteNode, onRenameNode, onMoveNode, onSetEditingNode, onCopyPath, onCutNode, onCopyNode, onPasteNode, canPaste,
-  onUndo, onRedo, missionPrompt, terminalHeight = 200, isTerminalCollapsed = false
+  onUndo, onRedo, missionPrompt, projectName, terminalHeight = 200, isTerminalCollapsed = false
 }) => {
   const [isSidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -312,7 +313,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
         className={`${isSidebarCollapsed ? 'w-0' : ''} flex-shrink-0 transition-all duration-300 flex flex-row absolute left-0 top-0 z-20`}
         style={{ 
           width: isSidebarCollapsed ? 0 : `${sidebarWidth}px`,
-          height: isTerminalCollapsed ? 'calc(100% + 24px)' : `calc(100% + ${terminalHeight}px + 24px)`
+          height: '100%'
         }}
       >
         <div className="flex-grow flex flex-col bg-[#0a0a0c] border-r border-white/10 min-w-0 rounded-3xl overflow-hidden">
@@ -565,6 +566,7 @@ export const CodeView: React.FC<CodeViewProps> = ({
                     projectFiles={files}
                     missionPrompt={missionPrompt}
                     agentStatus={agentStatus}
+                    projectName={projectName}
                 />
             </div>
         </div>

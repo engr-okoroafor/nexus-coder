@@ -136,10 +136,11 @@ const PreviewComponent: ForwardRefRenderFunction<HTMLIFrameElement, PreviewProps
             key={iframeKey}
             srcDoc={generatedMarkup}
             title="Live Preview"
-            sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin"
+            sandbox="allow-scripts allow-forms allow-modals allow-popups allow-same-origin allow-downloads allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
             className="w-full h-full border-none bg-white"
             onLoad={() => console.log('✅ Iframe loaded successfully')}
             onError={(e) => console.error('❌ Iframe error:', e)}
+            allow="accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone; midi; payment; usb"
         />
     ) : (
         <div className="w-full h-full flex flex-col items-center justify-center bg-[#0d0d0f] text-gray-400">
